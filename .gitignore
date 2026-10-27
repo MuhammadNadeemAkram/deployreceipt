@@ -147,3 +147,8 @@ vite.config.ts.timestamp-*
 
 # Turbo Repo
 .turbo
+
+# Hosting and local machine files
+.vercel/
+.DS_Store
+Thumbs.db
