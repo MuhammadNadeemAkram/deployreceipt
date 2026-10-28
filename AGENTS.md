@@ -12,3 +12,14 @@
 - Never commit credentials, .env files, node_modules, build output, or caches. Keep .env.example credential-free.
 - Run npm run lint, npm run typecheck, and npm run build before handoff. Add meaningful tests for behavior changes and report incomplete checks.
 - Update README setup, architecture, roadmap, and status when behavior changes.
+
+## Authentication and database conventions
+
+- This milestone authorizes Supabase authentication and personal project CRUD, not teams, scans, billing, or AI.
+- Use @supabase/ssr clients. The server client is server-only. Never introduce a service-role or secret key into web code or public environment variables.
+- Refresh cookies in src/proxy.ts for Next.js 16. Verify users independently in each protected page/action; do not trust getSession or submitted IDs for authorization.
+- Derive project owner_id from auth.uid() in SQL. Keep ownership and immutable columns out of grants and writable application types. Enforce RLS for every new application table and operation.
+- Keep schema changes in new versioned supabase/migrations files. Do not edit an applied migration; add a forward migration. Maintain database authorization tests for allowed and denied operations across two users and anonymous callers.
+- Callback redirects must use the configured canonical origin and fixed destinations. Never log auth tokens, callback URLs, or raw provider errors.
+- Use server validation and accessible form state. Do not fetch submitted website URLs during project management.
+- Run npm test alongside lint/typecheck/build. Run npm run test:db with Supabase CLI and Docker when available, and distinguish mocked web tests from real database tests.

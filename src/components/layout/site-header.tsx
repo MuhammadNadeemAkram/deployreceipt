@@ -12,6 +12,7 @@ export function SiteHeader() {
       <nav aria-label="Main navigation">
         <Link href="/#workflow">How it works</Link>
         <a href={site.github}>GitHub ↗</a>
+        <Link href="/login">Sign in</Link>
         <Link className="button small" href="/get-started">
           Get Started
         </Link>
