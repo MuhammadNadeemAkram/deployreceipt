@@ -11,6 +11,15 @@ export type ScanResult = {
   checks: Finding[];
   artifacts: Partial<Record<"desktop" | "mobile", Buffer>>;
 };
+export async function disconnectBrowser(browser: Pick<Browser, "close">) {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    await Promise.race([
+      browser.close(),
+      new Promise<void>((resolve) => { timer = setTimeout(resolve, 5000); }),
+    ]);
+  } finally { clearTimeout(timer); }
+}
 export function internalLinks(
   values: string[],
   base: string,

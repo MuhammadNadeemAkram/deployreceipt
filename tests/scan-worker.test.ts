@@ -84,3 +84,13 @@ it("does not silently accept oversized artifacts", async () => {
   expect(db.upload).not.toHaveBeenCalled();
   expect(db.retry).toHaveBeenCalled();
 });
+
+it("bounds browser disconnect if the remote browser stops responding", async () => {
+  vi.useFakeTimers();
+  try {
+    const { disconnectBrowser } = await import("../worker/engine");
+    const disconnected = disconnectBrowser({ close: () => new Promise<void>(() => {}) });
+    await vi.advanceTimersByTimeAsync(5000);
+    await expect(disconnected).resolves.toBeUndefined();
+  } finally { vi.useRealTimers(); }
+});

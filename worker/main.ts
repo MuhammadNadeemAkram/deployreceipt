@@ -3,7 +3,7 @@ import { chromium } from "playwright";
 import type { Database } from "../src/lib/supabase/types";
 import type { ScanJob } from "../src/features/scans/types";
 import { fixtureUrl } from "./security";
-import { scanWebsite } from "./engine";
+import { scanWebsite, disconnectBrowser } from "./engine";
 import { verifyDomain } from "./verification";
 import { processJob, type JobStore } from "./process-job";
 
@@ -119,7 +119,7 @@ async function main() {
               scan.settings,
             );
           } finally {
-            await browser.close();
+            await disconnectBrowser(browser);
           }
         },
         (verify) =>

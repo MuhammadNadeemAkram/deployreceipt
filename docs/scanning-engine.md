@@ -25,7 +25,7 @@ No browser runs inside a Next.js request. No application cookies, credentials, a
 
 Use the Node/npm versions in README. Run `npm ci`. Added dependencies are Playwright and ipaddr.js; tsx runs the TypeScript worker.
 
-Apply the new forward migration with the existing Supabase CLI workflow:
+Apply both pending scan migrations (schema and the forward artifact-policy correction) with the existing Supabase CLI workflow:
 
 ```sh
 supabase link --project-ref YOUR_DEVELOPMENT_PROJECT
@@ -145,3 +145,5 @@ This mode applies the identical firewall and capability drop before attempting f
 Public scanning remains unavailable even if unit/container smoke tests pass. A production public mode needs an independent network/SSRF review, connection-time proxy enforcement for every protocol, sandbox isolation and resource testing, deployment-specific egress verification, worker-specific least-privilege credentials, operational monitoring and retention scheduling. A real configured Supabase/browser end-to-end run remains a separate verification from unit, browser-fixture and SQL tests.
 
 No AI, PDFs, client approvals, billing, unrestricted crawling, user scripts, or public performance claims are included.
+
+Worker shutdown is bounded too: a non-responsive browser disconnect stops blocking the attempt after five seconds. The Compose worker restarts after a process crash; durable leases govern recovery rather than an in-memory queue.
