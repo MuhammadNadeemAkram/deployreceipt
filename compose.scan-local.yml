@@ -34,6 +34,7 @@ services:
     cpus: 1
     pids_limit: 256
   worker:
+    restart: unless-stopped
     build:
       context: .
       dockerfile: worker/Dockerfile
