@@ -192,4 +192,3 @@ $$;
 revoke all on function public.create_qa_report(uuid),public.save_qa_triage(uuid,uuid,text,text,text,integer,uuid[]),public.add_qa_comment(uuid,uuid,text),public.claim_qa_export(uuid),public.release_qa_export(uuid) from public,anon,authenticated;
 grant execute on function public.create_qa_report(uuid),public.save_qa_triage(uuid,uuid,text,text,text,integer,uuid[]),public.add_qa_comment(uuid,uuid,text),public.claim_qa_export(uuid),public.release_qa_export(uuid) to authenticated;
 commit;
-

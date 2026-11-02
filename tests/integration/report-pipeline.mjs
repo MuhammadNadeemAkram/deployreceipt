@@ -203,6 +203,16 @@ try {
     "read real checks",
   );
   assert.equal(checks.length, 6);
+  const observation = (type) => checks.find((check) => check.check_type === type);
+  assert.equal(observation("availability")?.outcome, "pass");
+  assert.equal(observation("availability")?.details.http_status, 200);
+  assert.equal(observation("availability")?.details.final_url, "http://fixture:8080/");
+  for (const type of ["desktop", "mobile"])
+    assert.equal(observation(type)?.outcome, "pass", "Fixture viewport must load");
+  assert(observation("javascript")?.details.count > 0, "Fixture JS errors must be observed");
+  assert(observation("links")?.details.broken > 0, "Fixture broken link must be observed");
+  assert(observation("network")?.details.count > 0, "Fixture resource failures must be observed");
+  assert(!JSON.stringify(checks).includes("do-not-store"), "Fixture token must be redacted");
   const screenshots = checks.filter((check) => check.screenshot_path);
   assert.equal(screenshots.length, 2);
   const screenshotBytes = [];
@@ -389,6 +399,9 @@ try {
     scan_status: run.status,
     configuration_recorded: run.configuration_snapshot?.source,
     checks: checks.length,
+    observed_http_status: observation("availability").details.http_status,
+    observed_broken_links: observation("links").details.broken,
+    observed_javascript_errors: observation("javascript").details.count,
     passed: run.passed_count,
     failed: run.failed_count,
     warnings: run.warning_count,

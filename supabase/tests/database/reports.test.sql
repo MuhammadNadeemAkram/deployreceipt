@@ -113,4 +113,3 @@ select throws_ok($$select * from public.qa_reports$$,'42501',null,'anonymous rep
 select throws_ok($$select public.create_qa_report('41111111-1111-4111-8111-111111111111')$$,'42501',null,'anonymous report creation denied');
 select * from finish();
 rollback;
-
