@@ -47,6 +47,7 @@ services:
     read_only: true
     cap_drop: [ALL]
     security_opt: ["no-new-privileges:true"]
+    tmpfs: ["/tmp:size=32m,mode=1777,nosuid,nodev,noexec"]
     mem_limit: 256m
     pids_limit: 64
 networks:
