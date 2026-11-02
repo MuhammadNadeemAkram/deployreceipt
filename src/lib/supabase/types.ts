@@ -1,3 +1,17 @@
+import type {
+  ScanRun,
+  ScanCheck,
+  ScanSettings,
+  Verification,
+} from "@/features/scans/types";
+type Json =
+  | string
+  | number
+  | boolean
+  | null
+  | { [key: string]: Json | undefined }
+  | Json[];
+type ReadTable<T> = { Row: T; Insert: never; Update: never; Relationships: [] };
 // Schema contract for supabase/migrations. Regenerate with Supabase CLI after schema changes.
 export type Project = {
   id: string;
@@ -17,6 +31,10 @@ type Profile = {
 export type Database = {
   public: {
     Tables: {
+      scan_runs: ReadTable<ScanRun>;
+      scan_checks: ReadTable<ScanCheck>;
+      domain_verifications: ReadTable<Verification>;
+      scan_settings: ReadTable<ScanSettings>;
       profiles: {
         Row: Profile;
         Insert: { id: string; full_name?: string | null };
@@ -39,7 +57,42 @@ export type Database = {
       };
     };
     Views: { [_ in never]: never };
-    Functions: { [_ in never]: never };
+    Functions: {
+      request_scan: { Args: { p_project_id: string }; Returns: string };
+      request_domain_verification: {
+        Args: { p_project_id: string };
+        Returns: undefined;
+      };
+      lease_scan_job: { Args: Record<string, never>; Returns: Json };
+      finish_scan: {
+        Args: {
+          p_scan_id: string;
+          p_lease: string;
+          p_status: string;
+          p_checks: Json;
+          p_error?: string | null;
+        };
+        Returns: boolean;
+      };
+      retry_scan: {
+        Args: { p_scan_id: string; p_lease: string };
+        Returns: boolean;
+      };
+      finish_verification: {
+        Args: {
+          p_project_id: string;
+          p_lease: string;
+          p_verified: boolean;
+          p_method: string;
+        };
+        Returns: boolean;
+      };
+      ack_scan_job: { Args: { p_message_id: string }; Returns: boolean };
+      expired_scan_artifacts: {
+        Args: Record<string, never>;
+        Returns: string[];
+      };
+    };
     Enums: { [_ in never]: never };
     CompositeTypes: { [_ in never]: never };
   };

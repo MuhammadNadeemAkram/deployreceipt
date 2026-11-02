@@ -1,0 +1,8 @@
+FROM mcr.microsoft.com/playwright:v1.64.1-noble
+WORKDIR /app
+RUN apt-get update && apt-get install -y --no-install-recommends iptables util-linux && rm -rf /var/lib/apt/lists/*
+COPY package*.json ./
+RUN npm ci --omit=dev --ignore-scripts
+COPY worker/browser-server.mjs worker/browser-entrypoint.sh worker/egress-test.mjs ./worker/
+RUN chmod 755 worker/browser-entrypoint.sh
+ENTRYPOINT ["/app/worker/browser-entrypoint.sh"]

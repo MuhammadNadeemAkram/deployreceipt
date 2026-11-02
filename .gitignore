@@ -156,3 +156,6 @@ Thumbs.db
 # Local Supabase CLI state
 supabase/.temp/
 supabase/.branches/
+
+# Credential-free worker template
+!.env.worker.example

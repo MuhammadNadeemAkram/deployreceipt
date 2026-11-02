@@ -916,3 +916,141 @@ summary:focus-visible {
     padding: 22px;
   }
 }
+
+/* Scan history, verification, and observed findings */
+.scan-panel {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 26px;
+  background: #fff;
+  margin: 24px 0;
+  overflow-wrap: anywhere;
+}
+.scan-panel h2 {
+  font-size: 23px;
+  letter-spacing: -0.5px;
+}
+.scan-panel p {
+  line-height: 1.75;
+}
+.scan-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-top: 24px;
+}
+.verification-record {
+  display: grid;
+  grid-template-columns: 140px minmax(0, 1fr);
+  gap: 12px;
+  padding: 18px;
+  background: #f2f6f0;
+  border-radius: 7px;
+  font-size: 13px;
+}
+.verification-record dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.scan-history {
+  list-style: none;
+  padding: 0;
+}
+.scan-history li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 18px;
+  border-top: 1px solid var(--border);
+  padding: 18px 0;
+  font-size: 14px;
+}
+.scan-history a {
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+.scan-history time {
+  margin-left: auto;
+  color: var(--muted);
+  font-size: 12px;
+}
+.scan-status {
+  display: inline-block;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 5px 12px;
+  font-size: 12px;
+  line-height: 1.3;
+  background: #f3f5f1;
+  color: #385345;
+  font-weight: 600;
+  text-transform: capitalize;
+}
+.scan-status[data-status="failed"],
+.scan-status[data-status="fail"],
+.scan-status[data-status="timed_out"] {
+  color: #8b2828;
+  background: #fff2ef;
+}
+.scan-status[data-status="completed"],
+.scan-status[data-status="pass"] {
+  color: #166344;
+  background: #eaf5ec;
+}
+.scan-counts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 24px;
+  margin: 24px 0;
+  font-size: 18px;
+  font-weight: 600;
+}
+.scan-details {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  background: #f3f5f1;
+  padding: 18px;
+  font-size: 12px;
+  line-height: 1.7;
+  border-radius: 6px;
+}
+.scan-screenshot {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  border: 1px solid var(--border);
+  margin-top: 20px;
+}
+.scan-panel figure {
+  margin: 20px 0;
+}
+.text-button {
+  border: 0;
+  padding: 3px;
+  background: none;
+  text-decoration: underline;
+  color: var(--accent);
+}
+.project-actions {
+  flex-wrap: wrap;
+}
+@media (max-width: 650px) {
+  .scan-panel {
+    padding: 20px;
+  }
+  .verification-record {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+  .verification-record dd {
+    margin-bottom: 10px;
+  }
+  .scan-history time {
+    margin-left: 0;
+    width: 100%;
+  }
+  .scan-counts {
+    font-size: 16px;
+    gap: 15px;
+  }
+}

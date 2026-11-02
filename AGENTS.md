@@ -23,3 +23,12 @@
 - Callback redirects must use the configured canonical origin and fixed destinations. Never log auth tokens, callback URLs, or raw provider errors.
 - Use server validation and accessible form state. Do not fetch submitted website URLs during project management.
 - Run npm test alongside lint/typecheck/build. Run npm run test:db with Supabase CLI and Docker when available, and distinguish mocked web tests from real database tests.
+
+## Scanning engine conventions
+
+- This milestone authorizes the restricted fixture scanning engine, not public URL scanning, reports, approvals, billing, AI, or user-defined scripts.
+- Read docs/scanning-engine.md before changing worker/network code. Public scanning stays disabled; do not add an environment bypass or rely only on Playwright routing.
+- Keep the privileged Node orchestrator separate from the browser container. Browser containers receive no application credentials, no host networking, and no privileged mode. Keep the firewall, sandbox, capability drop, and resource bounds intact.
+- Use pgmq leases and worker-only RPCs. Persist artifacts/results before acknowledgement. Reject stale lease writes; test crash recovery, duplicate jobs, quotas, and denied permissions in SQL.
+- Add forward migrations only. Keep RLS enabled on scan tables and private screenshot policies tied to project ownership. Never accept client-supplied scan targets, outcomes, limits, or verification success.
+- Browser fixture tests are test-only. Distinguish unit tests, fixture browser observations, real SQL tests, container egress tests, and configured end-to-end runs in handoffs.
