@@ -56,7 +56,11 @@ export default async function Dashboard({
           {projects.map((project) => (
             <li className="project-card" key={project.id}>
               <p className="eyebrow">WEBSITE PROJECT</p>
-              <h2>{project.name}</h2>
+              <h2>
+                <Link href={`/dashboard/projects/${project.id}`}>
+                  {project.name}
+                </Link>
+              </h2>
               <a
                 className="project-url"
                 href={project.website_url}
@@ -79,6 +83,9 @@ export default async function Dashboard({
                 </time>
               </p>
               <div className="project-actions">
+                <Link href={`/dashboard/projects/${project.id}`}>
+                  Scans & details
+                </Link>
                 <Link href={`/dashboard/projects/${project.id}/edit`}>
                   Edit project
                 </Link>

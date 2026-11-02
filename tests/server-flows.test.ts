@@ -285,8 +285,12 @@ describe("project mutation boundaries", () => {
 describe("callback and session proxy", () => {
   it("redirects dashboard access when configuration is missing without contacting Auth", async () => {
     vi.stubEnv("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", "");
-    const response = await proxy(new NextRequest("https://app.example.test/dashboard"));
-    expect(response.headers.get("location")).toBe("https://app.example.test/login");
+    const response = await proxy(
+      new NextRequest("https://app.example.test/dashboard"),
+    );
+    expect(response.headers.get("location")).toBe(
+      "https://app.example.test/login",
+    );
     expect(mocks.ssr).not.toHaveBeenCalled();
   });
   it("exchanges a PKCE code and prevents open redirects", async () => {

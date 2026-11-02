@@ -24,6 +24,8 @@ jobs:
       - run: npm run lint
       - run: npm run typecheck
       - run: npm test
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:browser
       - run: npm run build
         env:
           NEXT_TELEMETRY_DISABLED: 1
@@ -39,3 +41,13 @@ jobs:
       - run: supabase test db
       - if: always()
         run: supabase stop --no-backup
+  fixture-egress:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - run: cp .env.worker.example .env.worker
+      - run: docker compose -f compose.scan-local.yml up -d fixture
+      - run: docker compose -f compose.scan-local.yml run --build --rm -e SCAN_EGRESS_TEST_ONLY=1 browser
+      - if: always()
+        run: docker compose -f compose.scan-local.yml down

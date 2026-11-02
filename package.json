@@ -10,7 +10,9 @@
     "typecheck": "next typegen && tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:db": "supabase test db"
+    "test:db": "supabase test db",
+    "worker": "node --env-file=.env.worker --import tsx worker/main.ts",
+    "test:browser": "vitest run --config vitest.browser.config.mts"
   },
   "repository": {
     "type": "git",
@@ -26,7 +28,9 @@
   "dependencies": {
     "@supabase/ssr": "0.12.7",
     "@supabase/supabase-js": "2.118.0",
+    "ipaddr.js": "2.5.0",
     "next": "16.4.3",
+    "playwright": "1.64.1",
     "react": "19.3.1",
     "react-dom": "19.3.1",
     "server-only": "0.0.1"
@@ -40,6 +44,7 @@
     "eslint-config-next": "16.4.3",
     "postcss": "8.5.32",
     "tailwindcss": "4.3.3",
+    "tsx": "4.23.15",
     "typescript": "6.0.3",
     "vitest": "5.0.5"
   },

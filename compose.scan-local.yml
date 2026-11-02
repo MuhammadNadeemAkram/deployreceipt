@@ -1,0 +1,57 @@
+# Fixture-only development topology. It does not enable public URL scanning.
+services:
+  fixture:
+    image: node:24-bookworm-slim
+    user: node
+    command: ["node", "/app/server.mjs"]
+    environment:
+      DEPLOYRECEIPT_FIXTURE: "1"
+    volumes:
+      - ./worker/fixtures/server.mjs:/app/server.mjs:ro
+    networks:
+      scan_net:
+        ipv4_address: 172.30.77.10
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    mem_limit: 128m
+    pids_limit: 64
+  browser:
+    build:
+      context: .
+      dockerfile: worker/Dockerfile.browser
+    networks:
+      scan_net:
+        ipv4_address: 172.30.77.20
+    cap_drop: [ALL]
+    cap_add: [NET_ADMIN, SETUID, SETGID, SETPCAP]
+    security_opt:
+      ["no-new-privileges:true", "seccomp=./worker/chromium-seccomp.json"]
+    read_only: true
+    tmpfs: ["/tmp:size=256m", "/home/pwuser:size=64m"]
+    shm_size: 256m
+    mem_limit: 768m
+    cpus: 1
+    pids_limit: 256
+  worker:
+    build:
+      context: .
+      dockerfile: worker/Dockerfile
+    env_file: .env.worker
+    environment:
+      SCAN_WORKER_MODE: local
+    extra_hosts: ["host.docker.internal:host-gateway"]
+    networks: [control_net, scan_net]
+    depends_on: [browser, fixture]
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    mem_limit: 256m
+    pids_limit: 64
+networks:
+  scan_net:
+    internal: true
+    ipam:
+      config:
+        - subnet: 172.30.77.0/24
+  control_net: {}
