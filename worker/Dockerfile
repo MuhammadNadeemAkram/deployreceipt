@@ -6,4 +6,4 @@ COPY worker ./worker
 COPY src/lib/supabase/types.ts ./src/lib/supabase/types.ts
 COPY src/features/scans/types.ts ./src/features/scans/types.ts
 USER node
-CMD ["./node_modules/.bin/tsx","worker/main.ts"]
+CMD ["node","--import","tsx","worker/main.ts"]

@@ -107,6 +107,14 @@ async function main() {
           )
             throw new Error("local_mode_required");
           fixtureUrl(scan.run.target_url);
+          const recorded = await rpc(
+            client.rpc("record_scan_configuration", {
+              p_scan_id: scan.run.id,
+              p_lease: scan.lease,
+              p_configuration: JSON.parse(JSON.stringify(scan.settings)),
+            }),
+          );
+          if (!recorded) throw new Error("stale_scan_lease");
           // This endpoint exists only inside the isolated local Compose topology.
           const browser = await chromium.connect(
             "ws://browser:9000/scan-browser",

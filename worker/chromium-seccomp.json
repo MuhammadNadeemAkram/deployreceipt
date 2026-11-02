@@ -32,8 +32,8 @@
   ],
   "syscalls": [
     {
-      "comment": "Allow create user namespaces",
-      "names": ["clone", "setns", "unshare"],
+      "comment": "Allow Chromium user namespace creation and chroot inside that namespace; no host capabilities are granted",
+      "names": ["clone", "setns", "unshare", "chroot"],
       "action": "SCMP_ACT_ALLOW",
       "args": [],
       "includes": {},

@@ -4,7 +4,7 @@ An open-source quality assurance and release approval platform for web developer
 
 Run automated website checks, capture test evidence, track issues, and share release reports with clients for review and approval.
 
-**Current milestone:** email/password authentication and personal project management are implemented. A restricted asynchronous fixture-scanning engine is implemented. Public URL scanning remains disabled. Reports, client approvals, teams, billing, and AI remain planned. No scan is initiated merely by saving a project URL.
+**Current milestone:** email/password authentication and personal project management are implemented. A restricted asynchronous fixture-scanning engine is implemented. Public URL scanning remains disabled. Private QA reports, human triage, and bounded PDF export are implemented. Client approvals, teams, billing, and AI remain unavailable. No scan is initiated merely by saving a project URL.
 
 ## Setup
 
@@ -99,7 +99,8 @@ The two typed schema contracts in src/lib/supabase/types.ts reflect the migratio
 | PostgreSQL RLS and restricted grants                   | Migration and database authorization suite included                         |
 | Automated validation and server-flow tests             | Implemented; service calls are mocked in web tests                          |
 | Restricted fixture scans, real checks and private PNGs | Implemented; see scanning guide                                             |
-| Public scans, reports, release approvals               | Not available                                                               |
+| QA reports, finding triage and private PDF export      | Implemented; requires reporting migration and Node runtime                  |
+| Public scanning and client approvals                   | Not available                                                               |
 | Teams, billing, AI                                     | Not implemented                                                             |
 
 Email delivery and persistence against a real Supabase project require the integration verification in the setup guide. A passing mocked test does not establish real email delivery or database isolation; the database suite and manual two-user checks cover those boundaries.
@@ -109,7 +110,7 @@ Email delivery and persistence against a real Supabase project require the integ
 1. Apply this migration to a development Supabase project and complete two-user authentication/persistence verification.
 2. Add pagination and account/profile management as project volume grows.
 3. Review and verify a production egress architecture before implementing public URL scans; the current queue/browser engine remains fixture-only.
-4. Add QA reports, client review, and an auditable release approval lifecycle.
+4. Harden report/evidence operations before a separately authorized client-review and release-approval milestone.
 
 ## Contributing
 
@@ -126,3 +127,9 @@ Build tooling note: dev and build select Next.js’s supported webpack bundler e
 See [Scanning engine setup and security boundaries](docs/scanning-engine.md) for queue migrations, DNS authorization, the isolated local fixture topology, worker credentials, limits, retention, tests, and remaining deployment requirements. Public URL scanning is deliberately disabled; there is no public-mode environment bypass. Added dependencies: Playwright 1.64.1, ipaddr.js 2.5.0, and tsx 4.23.15. Worker source is under worker/, scan UI/actions are under src/features/scans, and the forward migration is 20261102000100_scanning_engine.sql.
 
 Dependency audit note (2026-11-02): npm reports 16 moderate development-toolchain advisories inherited through ESLint/minimatch. The suggested automatic fix downgrades to incompatible major versions and was not applied. No added runtime scanner dependency was identified in those advisories. Review the lint toolchain separately; this milestone does not claim a clean full dependency audit.
+
+## QA reports and evidence
+
+Owners can create reports from terminal scans, review immutable observations, add human severity/status/notes/comments, reference same-scan evidence and export a private PDF. Failed scans are diagnostic reports, and historical configuration is marked unknown when it was never recorded. See [reporting setup, PDF architecture and security](docs/qa-reports.md). Apply the new migration before deploying the updated worker, which records actual execution configuration. Public scanning remains disabled. Full controlled-fixture pipeline verification is tracked by the reports-end-to-end CI job and its proof artifact; report/SQL/layout tests alone do not establish that path.
+
+PDF dependencies: pdf-lib and @pdf-lib/fontkit, with a vendored OFL-licensed Noto Sans font. Export uses a bounded Node worker with local fonts and private PNG bytes, not HTML or external website rendering.

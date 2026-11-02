@@ -1,6 +1,8 @@
 export type ScanStatus =
   "queued" | "running" | "completed" | "failed" | "timed_out";
 export type ScanRun = {
+  configuration_snapshot?: Record<string, unknown> | null;
+  verification_snapshot?: Record<string, unknown> | null;
   id: string;
   project_id: string;
   requested_by: string;

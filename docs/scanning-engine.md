@@ -81,7 +81,9 @@ docker compose -f compose.scan-local.yml down
 
 `npm run worker` loads .env.worker and starts the same Node orchestrator. It must have access to the isolated browser endpoint for local scans; use the Compose worker for the supported topology. When scanning is disabled it can process DNS verification without a browser. Do not run an uncontained arbitrary-target browser alongside worker credentials.
 
-The browser entrypoint installs IPv4/IPv6 firewall rules as root, then drops to pwuser with no capabilities. The browser gets no worker environment file. It runs with Chromium sandbox enabled and the upstream Playwright seccomp profile. If firewall/sandbox setup fails, it must exit; do not “fix” startup by adding privileged mode, host networking, disabling the firewall, or disabling the sandbox.
+The control worker retains a read-only root filesystem and uses a 32 MiB memory-backed, noexec temporary directory for its TypeScript runtime cache. Its Node import command matches the documented worker script.
+
+The browser entrypoint installs IPv4/IPv6 firewall rules as root, then drops to pwuser with no capabilities. The browser gets no worker environment file. It runs with Chromium sandbox enabled and the Playwright seccomp profile with an explicit chroot allowance for the Chromium nested user-namespace sandbox. The browser still has no host capabilities; the kernel authorizes chroot only inside its own user namespace. The original capability-conditional rule alone blocked sandbox startup after capabilities were dropped. If firewall/sandbox setup fails, it must exit; do not “fix” startup by adding privileged mode, host networking, disabling the firewall, or disabling the sandbox.
 
 The fixture network has a fixed private subnet; resolve local subnet conflicts before starting. Chromium uses a pinned fixture mapping rather than page-controlled DNS. Control/API egress belongs only to the Node orchestrator, which has no inbound service listener.
 

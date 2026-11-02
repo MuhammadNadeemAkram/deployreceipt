@@ -32,3 +32,12 @@
 - Use pgmq leases and worker-only RPCs. Persist artifacts/results before acknowledgement. Reject stale lease writes; test crash recovery, duplicate jobs, quotas, and denied permissions in SQL.
 - Add forward migrations only. Keep RLS enabled on scan tables and private screenshot policies tied to project ownership. Never accept client-supplied scan targets, outcomes, limits, or verification success.
 - Browser fixture tests are test-only. Distinguish unit tests, fixture browser observations, real SQL tests, container egress tests, and configured end-to-end runs in handoffs.
+
+## Report/evidence conventions
+
+- Task 04 authorizes private QA reports, manual triage/comments, same-scan evidence references, and bounded PDF export. Public scanning, anonymous sharing, approvals, billing and AI stay unavailable.
+- Derive reports from terminal persisted scans. Keep automated observations immutable and manual triage in separate tables. Unknown historical configuration/authorization must remain unknown.
+- Use owner-checked RPCs and RLS for all report mutations. Composite evidence keys must prevent cross-scan references; preserve original Storage retention.
+- PDF export must not render HTML or fetch arbitrary URLs. Keep PNG validation, local font assets, worker/thread/output limits, Origin checks, export leases, and final ownership recheck intact.
+- Never pass authentication credentials into the rendering worker or persist signed screenshot URLs in reports/PDFs.
+- Keep SQL, unit/API, real PDF, browser-layout fixture and configured live end-to-end verification distinct in handoffs. Do not claim the scan-pipeline prerequisite is complete without evidence.

@@ -1,3 +1,4 @@
+import { WorkspaceNav } from "@/components/layout/workspace-nav";
 import Link from "next/link";
 import { getSupabaseConfig } from "@/lib/supabase/config";
 import { requireUser } from "@/features/auth/session";
@@ -31,16 +32,10 @@ export default async function DashboardLayout({
           DeployReceipt
         </Link>
         <p className="eyebrow">YOUR WORKSPACE</p>
-        <nav aria-label="Workspace navigation">
-          <Link className="sidebar-link" href="/dashboard">
-            Projects
-          </Link>
-          <Link href="/dashboard/projects/new">New project</Link>
-          <Link href="/">Product home</Link>
-        </nav>
+        <WorkspaceNav />
         <p className="sidebar-note">
-          Project management is available. Website scans and release reports are
-          still planned.
+          Private projects, controlled-fixture scans, and QA reports. Public
+          scanning and client approvals remain unavailable.
         </p>
       </aside>
       <div className="workspace-body">
