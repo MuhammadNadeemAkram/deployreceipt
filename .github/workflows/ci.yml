@@ -63,9 +63,11 @@ jobs:
       - run: npm install --global npm@12.2.1
       - run: npm ci
       - run: npx playwright install --with-deps chromium
-      - uses: supabase/setup-cli@v3.0.1
-        with:
-          version: 2.122.0
+      # setup-cli v3 expects object metadata; npm 12 returns an array for multi-field view.
+      - name: Install pinned Supabase CLI
+        run: |
+          npm install --prefix "$RUNNER_TEMP/supabase-cli" --no-package-lock --no-audit --no-fund supabase@2.122.0
+          echo "$RUNNER_TEMP/supabase-cli/node_modules/.bin" >> "$GITHUB_PATH"
       - run: supabase start -x studio,imgproxy,edge-runtime,logflare,vector,supavisor,realtime > /tmp/deployreceipt-supabase-start.log 2>&1
       - run: node tests/integration/report-pipeline.mjs
         env:

@@ -99,6 +99,7 @@ The two typed schema contracts in src/lib/supabase/types.ts reflect the migratio
 | PostgreSQL RLS and restricted grants                   | Migration and database authorization suite included                         |
 | Automated validation and server-flow tests             | Implemented; service calls are mocked in web tests                          |
 | Restricted fixture scans, real checks and private PNGs | Implemented; see scanning guide                                             |
+| QA reports, finding triage and private PDF export      | Implemented; requires reporting migration and Node runtime                  |
 | Public scanning and client approvals                   | Not available                                                               |
 | Teams, billing, AI                                     | Not implemented                                                             |
 
