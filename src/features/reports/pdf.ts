@@ -25,6 +25,7 @@ export async function renderReportPdf(
       path.join(process.cwd(), "server/report-pdf-worker.mjs"),
       {
         workerData: { model, generatedAt },
+        env: {},
         resourceLimits: {
           maxOldGenerationSizeMb: 128,
           maxYoungGenerationSizeMb: 16,
