@@ -159,3 +159,8 @@ supabase/.branches/
 
 # Credential-free worker template
 !.env.worker.example
+
+# Local QA previews and temporary artifacts
+/work/
+/outputs/
+/tmp/

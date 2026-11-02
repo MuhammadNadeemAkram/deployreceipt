@@ -2,6 +2,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { ownedScan } from "@/features/scans/queries";
 import { StatusRefresh } from "@/features/scans/components/status-refresh";
+import { CreateReport } from "@/features/reports/components/create-report";
 export const metadata = { title: "Scan findings" };
 export default async function ScanDetail({
   params,
@@ -63,6 +64,19 @@ export default async function ScanDetail({
           establish visual correctness or accessibility compliance.
         </p>
       </section>
+      {["completed", "failed", "timed_out"].includes(run.status) && (
+        <section className="scan-panel">
+          <h2>QA report</h2>
+          <p>
+            Review these persisted observations, add human triage, and export
+            private evidence.
+          </p>
+          <CreateReport
+            scanId={run.id}
+            diagnostic={run.status !== "completed"}
+          />
+        </section>
+      )}
       {checks?.length ? (
         checks.map((check) => (
           <section className="scan-panel" key={check.id}>

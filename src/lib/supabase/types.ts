@@ -4,6 +4,12 @@ import type {
   ScanSettings,
   Verification,
 } from "@/features/scans/types";
+import type {
+  ReportRecord,
+  Triage,
+  Comment,
+  EvidenceLink,
+} from "@/features/reports/types";
 type Json =
   | string
   | number
@@ -31,6 +37,10 @@ type Profile = {
 export type Database = {
   public: {
     Tables: {
+      qa_reports: ReadTable<ReportRecord>;
+      qa_finding_triage: ReadTable<Triage>;
+      qa_comments: ReadTable<Comment>;
+      qa_finding_evidence: ReadTable<EvidenceLink>;
       scan_runs: ReadTable<ScanRun>;
       scan_checks: ReadTable<ScanCheck>;
       domain_verifications: ReadTable<Verification>;
@@ -58,6 +68,29 @@ export type Database = {
     };
     Views: { [_ in never]: never };
     Functions: {
+      record_scan_configuration: {
+        Args: { p_scan_id: string; p_lease: string; p_configuration: Json };
+        Returns: boolean;
+      };
+      create_qa_report: { Args: { p_scan_id: string }; Returns: string };
+      save_qa_triage: {
+        Args: {
+          p_report_id: string;
+          p_check_id: string;
+          p_severity: string | null;
+          p_resolution: string;
+          p_notes: string;
+          p_revision: number;
+          p_evidence: string[];
+        };
+        Returns: undefined;
+      };
+      add_qa_comment: {
+        Args: { p_report_id: string; p_check_id: string; p_body: string };
+        Returns: string;
+      };
+      claim_qa_export: { Args: { p_report_id: string }; Returns: string };
+      release_qa_export: { Args: { p_token: string }; Returns: undefined };
       request_scan: { Args: { p_project_id: string }; Returns: string };
       request_domain_verification: {
         Args: { p_project_id: string };
