@@ -16,7 +16,7 @@ export default async function ReviewInvitationPage({
   if (!isId(id)) notFound();
   return (
     <main id="main-content" className="container auth-main">
-      <section className="report-panel">
+      <section className="scan-panel report-panel">
         <p className="eyebrow">DEPLOYRECEIPT · PRIVATE INVITATION</p>
         <h1>Review a specific release.</h1>
         <p>

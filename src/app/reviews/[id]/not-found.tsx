@@ -1,7 +1,7 @@
 import Link from "next/link";
 export default function ReviewNotFound() {
   return (
-    <section className="report-panel">
+    <section className="scan-panel report-panel">
       <h1>Review unavailable</h1>
       <p>
         This review may have expired, been revoked or deleted, or require a

@@ -36,6 +36,11 @@ export async function verifyReleaseWorkflow({
   clientContext.setDefaultTimeout(15000);
   ownerContext.setDefaultNavigationTimeout(30000);
   clientContext.setDefaultNavigationTimeout(30000);
+  const ownerMasks = [
+    (developer) =>
+      developer.locator('.account-email, input[type="email"], input[readonly]'),
+    (developer) => developer.getByText(reviewerEmail, { exact: false }),
+  ];
   const cookies = (session) =>
     [...session.jar].map(([name, value]) => ({ name, value, url: site }));
   await ownerContext.addCookies(cookies(owner));
@@ -61,6 +66,24 @@ export async function verifyReleaseWorkflow({
         .single(),
       "read current invitation",
     );
+  async function deniedPage(session, path, privateDigest) {
+    const response = await fetch(site + path, {
+      headers: { Cookie: session.cookie() },
+      redirect: "manual",
+    });
+    const body = await response.text();
+    assert(
+      response.status === 404 ||
+        (response.status === 200 &&
+          (body.includes("NEXT_HTTP_ERROR_FALLBACK;404") ||
+            body.includes("Review unavailable"))),
+      "Page must render an explicit not-found denial",
+    );
+    assert(
+      !body.includes(privateDigest),
+      "Denied page must not serialize the private snapshot digest",
+    );
+  }
   async function createViaUI(title, previous) {
     await developer.goto(
       previous
@@ -282,9 +305,10 @@ export async function verifyReleaseWorkflow({
     );
     await submitViaUI();
     await acceptViaUI(v2);
-    assert.equal(
-      (await client.request.get(site + "/dashboard/releases/" + v2)).status(),
-      404,
+    await deniedPage(
+      reviewer,
+      "/dashboard/releases/" + v2,
+      revised.snapshot_digest,
     );
     assert.equal(
       checked(
@@ -296,7 +320,8 @@ export async function verifyReleaseWorkflow({
       ).length,
       0,
     );
-    const third = await fetch(site + "/reviews/" + v2, {
+    await deniedPage(outsider, "/reviews/" + v2, revised.snapshot_digest);
+    const third = await fetch(site + "/api/reviews/" + v2, {
       headers: { Cookie: outsider.cookie() },
       redirect: "manual",
     });
@@ -356,11 +381,17 @@ export async function verifyReleaseWorkflow({
     });
     assert(replay.error);
     await developer.reload();
-    await developer.screenshot({ path: "outputs/e2e-release-owner.png" });
+    await developer.screenshot({
+      path: "outputs/e2e-release-owner.png",
+      mask: ownerMasks.map((mask) => mask(developer)),
+    });
     await developer
       .getByRole("heading", { name: "Audit timeline" })
       .scrollIntoViewIfNeeded();
-    await developer.screenshot({ path: "outputs/e2e-release-timeline.png" });
+    await developer.screenshot({
+      path: "outputs/e2e-release-timeline.png",
+      mask: ownerMasks.map((mask) => mask(developer)),
+    });
     await client.reload();
     await client.screenshot({ path: "outputs/e2e-client-review-desktop.png" });
     const mobile = await browser.newContext({
@@ -430,7 +461,7 @@ export async function verifyReleaseWorkflow({
       "revoke accepted invitation",
     );
     assert.equal(
-      (await client.request.get(site + "/reviews/" + v3)).status(),
+      (await client.request.get(site + "/api/reviews/" + v3)).status(),
       404,
     );
     assert.equal(
@@ -527,7 +558,10 @@ export async function verifyReleaseWorkflow({
     return { reviewIds: [v1, v2, v3], reviewer };
   } catch (error) {
     await developer
-      .screenshot({ path: "outputs/e2e-release-failed-owner.png" })
+      .screenshot({
+        path: "outputs/e2e-release-failed-owner.png",
+        mask: ownerMasks.map((mask) => mask(developer)),
+      })
       .catch(() => {});
     await client
       .screenshot({ path: "outputs/e2e-release-failed-client.png" })

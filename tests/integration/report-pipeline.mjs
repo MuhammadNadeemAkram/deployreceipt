@@ -423,7 +423,7 @@ try {
   );
   assert.equal(deletedExport.status, 404);
   for (const reviewId of releaseProof.reviewIds) {
-    const response = await fetch(site + "/reviews/" + reviewId, {
+    const response = await fetch(site + "/api/reviews/" + reviewId, {
       headers: { Cookie: other.cookie() },
       redirect: "manual",
     });

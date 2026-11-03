@@ -28,6 +28,7 @@ import {
   resolveFeedback,
 } from "@/features/releases/actions";
 import { GET } from "@/app/api/reviews/[id]/evidence/[checkId]/route";
+import { GET as reviewGet } from "@/app/api/reviews/[id]/route";
 const id = "11111111-1111-4111-8111-111111111111",
   check = "22222222-2222-4222-8222-222222222222",
   future = "2099-01-01T00:00:00Z";
@@ -270,4 +271,18 @@ it("does not expose raw database errors", async () => {
   });
   const result = await manageRelease(id, {}, form({ action: "submit" }));
   expect(JSON.stringify(result)).not.toContain("internals");
+});
+
+it("returns only authorized review content with private JSON headers", async () => {
+  const response = await reviewGet(new Request("https://example.test"), {
+    params: Promise.resolve({ id }),
+  });
+  expect(response.headers.get("cache-control")).toContain("no-store");
+  const body = await response.json();
+  expect(body.review.id).toBe(id);
+  expect(body.client).toBeUndefined();
+  expect(body.user).toBeUndefined();
+  expect(body.invitations).toBeUndefined();
+  expect(body.events).toBeUndefined();
+  expect(body.evidence[0].path).toBeUndefined();
 });

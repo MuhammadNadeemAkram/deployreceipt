@@ -1401,3 +1401,61 @@ select:focus-visible {
     flex-direction: column;
   }
 }
+/* Review sections reuse the existing scan/report panel treatment. */
+.report-panel h1 {
+  font-size: clamp(1.8rem, 4vw, 2.4rem);
+  line-height: 1.2;
+  letter-spacing: -0.8px;
+  margin: 8px 0 20px;
+}
+.report-panel h2 {
+  margin: 0 0 18px;
+  font-weight: 600;
+}
+.report-panel h3 {
+  font-size: 17px;
+  font-weight: 600;
+  line-height: 1.45;
+  margin: 18px 0 10px;
+}
+.report-panel > p {
+  margin: 10px 0;
+}
+.report-panel > ul {
+  list-style: disc;
+  padding-left: 22px;
+  margin: 14px 0;
+  color: var(--muted);
+  line-height: 1.7;
+}
+.report-panel .stack-form > .button {
+  justify-self: start;
+}
+.report-panel blockquote {
+  border-left: 3px solid var(--border);
+  padding-left: 16px;
+  margin: 18px 0;
+  color: var(--muted);
+}
+.report-panel .review-finding > p {
+  margin: 8px 0;
+}
+.review-finding .scan-status[data-status="warning"] {
+  color: #835014;
+  background: #fff7e8;
+}
+.report-summary .review-alert strong {
+  color: #8b3829;
+}
+@media (max-width: 640px) {
+  .report-panel {
+    padding: 20px;
+  }
+  .report-panel .stack-form > .button {
+    width: 100%;
+    justify-self: stretch;
+  }
+  .review-digest {
+    font-size: 12px;
+  }
+}

@@ -10,6 +10,7 @@ Apply `20261103000100_release_reviews.sql` `20261103000200_review_evidence_scope
 - `/dashboard/releases`: owner list/filter, creation, invitations, feedback, revisions and audit history.
 - `/reviews`: current invitations for the signed-in verified email. `/reviews/[id]` is the simpler client portal.
 - `/review-invitations/[id]`: public instructions only; no review content or automatic acceptance.
+- `/api/reviews/[id]`: private structured review content, without session data, invitation rows, audit history or storage paths.
 - `/api/reviews/[id]/evidence/[checkId]`: authenticated private bytes, without a signed redirect.
 
 The existing report and scan authorization policies remain owner-only. Reviewers receive access to release snapshots and specifically referenced screenshots, not the original reports, projects, scan history, developer workspace, or other files.
@@ -71,3 +72,5 @@ CI's controlled report workflow also runs `tests/integration/release-workflow.mj
 Checks cover version/digest forgery, immutability, identity mismatch/unverified email, before-acceptance isolation, direct writes, cross-project access, author impersonation, comment bounds and HTML as literal React text, invitation expiry/reissue/revocation, replay, concurrent decisions, missing/expired artifacts, audit history and project deletion. The browser acceptance test replays a real comment POST with a forged Origin and checks that no duplicate comment is stored. Server Actions retain Next.js origin/CSRF protections; invitation GET requests never mutate data. Redirect destinations are fixed routes and UUIDs, not submitted URLs.
 
 Known limits: one primary reviewer, latest 50 reviews/invitations (100 eligible report choices), 100 comments/review, 2,000 characters/comment or decision, 4,000 release-note characters, 512 KiB snapshot, no notification email, no realtime updates, no public sharing or reviewer PDF export. Original owner-only PDF export remains unchanged. A hosted deployment, real confirmation-email delivery and deployment-specific operational behavior require separate development-environment verification. Existing lint-toolchain audit advisories remain documented in README.
+
+HTML authorization tests assert the explicit not-found UI and absence of the private snapshot digest. Next.js may send HTTP 200 for a streamed not-found response when a loading boundary has already committed headers; see [Next.js not-found behavior](https://nextjs.org/docs/app/api-reference/file-conventions/not-found). The private JSON/evidence endpoints are tested for HTTP 404 on denied access, and database isolation is tested independently. An HTTP 200 alone is never treated as evidence of authorization.

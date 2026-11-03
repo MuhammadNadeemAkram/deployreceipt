@@ -20,7 +20,7 @@ export default async function NewRelease({
   const { data, error } = await query;
   if (error) throw new Error("Reports unavailable.");
   return (
-    <section className="report-panel">
+    <section className="scan-panel report-panel">
       <p className="eyebrow">
         {prior
           ? `REVISED REVIEW AFTER VERSION ${prior.version}`

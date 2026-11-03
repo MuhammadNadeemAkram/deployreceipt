@@ -61,7 +61,7 @@ export function ReviewContent({
           <span>Warnings — review explicitly</span>
         </div>
       </div>
-      <section className="report-panel">
+      <section className="scan-panel report-panel">
         <h2>Release notes</h2>
         <p className="review-prose">
           {review.release_notes || "No release notes provided."}
@@ -87,12 +87,15 @@ export function ReviewContent({
           ))}
         </ul>
       </section>
-      <section className="report-panel">
+      <section className="scan-panel report-panel">
         <h2>Findings in this version</h2>
         {s.findings.map((f) => (
           <article key={f.id} className="review-finding" id={`finding-${f.id}`}>
             <p className="eyebrow">
-              {f.type} · {f.outcome.toUpperCase()}
+              {f.type} ·{" "}
+              <span className="scan-status" data-status={f.outcome}>
+                {f.outcome.toUpperCase()}
+              </span>
             </p>
             <h3>{f.description}</h3>
             <p>
@@ -129,7 +132,7 @@ export function ReviewContent({
           </article>
         ))}
       </section>
-      <section className="report-panel">
+      <section className="scan-panel report-panel">
         <h2>Screenshot evidence</h2>
         <p>
           Evidence uses the original scan retention policy. No screenshot is
@@ -159,7 +162,7 @@ export function ReviewContent({
           ))}
         </div>
       </section>
-      <section className="report-panel">
+      <section className="scan-panel report-panel">
         <h2>Decision history</h2>
         {!decisions.length ? (
           <p>No decision recorded for this version.</p>
@@ -181,7 +184,7 @@ export function ReviewContent({
           ))
         )}
       </section>
-      <section className="report-panel">
+      <section className="scan-panel report-panel">
         <h2>Client feedback and developer replies</h2>
         <p>
           {
@@ -223,7 +226,7 @@ export function ReviewContent({
         ) && <ReviewCommentForm review={review} comments={comments} />}
       </section>
       {!owner && review.status === "pending_review" && (
-        <section className="report-panel">
+        <section className="scan-panel report-panel">
           <h2>Your release decision</h2>
           <DecisionForm review={review} />
         </section>

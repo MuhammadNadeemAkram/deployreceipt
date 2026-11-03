@@ -19,7 +19,7 @@ export default async function OwnerRelease({
     <>
       <Link href="/dashboard/releases">← Release reviews</Link>
       <ReviewContent {...data} owner />
-      <section className="report-panel">
+      <section className="scan-panel report-panel">
         <h2>Reviewer invitation</h2>
         <p>
           One primary reviewer per version. Share manually after submitting; no
@@ -61,7 +61,7 @@ export default async function OwnerRelease({
           </p>
         )}
       </section>
-      <section className="report-panel">
+      <section className="scan-panel report-panel">
         <h2>Audit timeline</h2>
         <p>
           Application audit history; this is not a legally qualified electronic
