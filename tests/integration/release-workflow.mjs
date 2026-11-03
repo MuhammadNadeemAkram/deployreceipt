@@ -381,9 +381,16 @@ export async function verifyReleaseWorkflow({
     });
     assert(replay.error);
     await developer.reload();
+    await developer
+      .getByRole("heading", { name: "approved · version 2", exact: true })
+      .waitFor();
+    await developer.evaluate(() =>
+      window.scrollTo({ top: 0, behavior: "instant" }),
+    );
     await developer.screenshot({
       path: "outputs/e2e-release-owner.png",
       mask: ownerMasks.map((mask) => mask(developer)),
+      maskColor: "#182e2a",
     });
     await developer
       .getByRole("heading", { name: "Audit timeline" })
@@ -391,8 +398,15 @@ export async function verifyReleaseWorkflow({
     await developer.screenshot({
       path: "outputs/e2e-release-timeline.png",
       mask: ownerMasks.map((mask) => mask(developer)),
+      maskColor: "#182e2a",
     });
     await client.reload();
+    await client
+      .getByRole("heading", { name: "approved · version 2", exact: true })
+      .waitFor();
+    await client.evaluate(() =>
+      window.scrollTo({ top: 0, behavior: "instant" }),
+    );
     await client.screenshot({ path: "outputs/e2e-client-review-desktop.png" });
     const mobile = await browser.newContext({
       viewport: { width: 390, height: 844 },
@@ -561,6 +575,7 @@ export async function verifyReleaseWorkflow({
       .screenshot({
         path: "outputs/e2e-release-failed-owner.png",
         mask: ownerMasks.map((mask) => mask(developer)),
+        maskColor: "#182e2a",
       })
       .catch(() => {});
     await client
