@@ -1,4 +1,12 @@
 import type {
+  ReleaseReview,
+  ReviewInvitation,
+  ReviewEvidence,
+  ReviewComment,
+  ReviewDecision,
+  ReviewEvent,
+} from "@/features/releases/types";
+import type {
   ScanRun,
   ScanCheck,
   ScanSettings,
@@ -37,6 +45,12 @@ type Profile = {
 export type Database = {
   public: {
     Tables: {
+      release_reviews: ReadTable<ReleaseReview>;
+      review_invitations: ReadTable<ReviewInvitation>;
+      release_review_evidence: ReadTable<ReviewEvidence>;
+      review_comments: ReadTable<ReviewComment>;
+      review_decisions: ReadTable<ReviewDecision>;
+      review_events: ReadTable<ReviewEvent>;
       qa_reports: ReadTable<ReportRecord>;
       qa_finding_triage: ReadTable<Triage>;
       qa_comments: ReadTable<Comment>;
@@ -68,6 +82,60 @@ export type Database = {
     };
     Views: { [_ in never]: never };
     Functions: {
+      create_release_review: {
+        Args: {
+          p_report: string;
+          p_title: string;
+          p_notes: string;
+          p_email: string;
+          p_previous: string | null;
+        };
+        Returns: string;
+      };
+      expire_release_reviews: {
+        Args: Record<string, never>;
+        Returns: undefined;
+      };
+      manage_release_review: {
+        Args: { p_id: string; p_action: string };
+        Returns: string;
+      };
+      accept_review_invitation: {
+        Args: { p_invitation: string };
+        Returns: string;
+      };
+      add_review_comment: {
+        Args: {
+          p_id: string;
+          p_content: string;
+          p_finding: string | null;
+          p_parent: string | null;
+          p_kind: string;
+        };
+        Returns: string;
+      };
+      resolve_review_feedback: {
+        Args: { p_id: string; p_comment: string; p_resolved: boolean };
+        Returns: undefined;
+      };
+      decide_release_review: {
+        Args: {
+          p_id: string;
+          p_version: number;
+          p_digest: string;
+          p_decision: string;
+          p_scope_ack: boolean;
+          p_observations_ack: boolean;
+          p_evidence_ack: boolean;
+          p_notes: string;
+        };
+        Returns: string;
+      };
+      can_read_release_artifact: {
+        Args: { p_review: string; p_check: string };
+        Returns: boolean;
+      };
+      can_read_review_evidence: { Args: { p_path: string }; Returns: boolean };
       record_scan_configuration: {
         Args: { p_scan_id: string; p_lease: string; p_configuration: Json };
         Returns: boolean;

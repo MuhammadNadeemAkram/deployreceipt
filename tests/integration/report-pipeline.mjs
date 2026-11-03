@@ -1,3 +1,4 @@
+import { verifyReleaseWorkflow } from "./release-workflow.mjs";
 // Disposable local-stack CI integration only. Never points at a hosted Supabase project.
 import assert from "node:assert/strict";
 import { execFileSync, spawn } from "node:child_process";
@@ -203,16 +204,36 @@ try {
     "read real checks",
   );
   assert.equal(checks.length, 6);
-  const observation = (type) => checks.find((check) => check.check_type === type);
+  const observation = (type) =>
+    checks.find((check) => check.check_type === type);
   assert.equal(observation("availability")?.outcome, "pass");
   assert.equal(observation("availability")?.details.http_status, 200);
-  assert.equal(observation("availability")?.details.final_url, "http://fixture:8080/");
+  assert.equal(
+    observation("availability")?.details.final_url,
+    "http://fixture:8080/",
+  );
   for (const type of ["desktop", "mobile"])
-    assert.equal(observation(type)?.outcome, "pass", "Fixture viewport must load");
-  assert(observation("javascript")?.details.count > 0, "Fixture JS errors must be observed");
-  assert(observation("links")?.details.broken > 0, "Fixture broken link must be observed");
-  assert(observation("network")?.details.count > 0, "Fixture resource failures must be observed");
-  assert(!JSON.stringify(checks).includes("do-not-store"), "Fixture token must be redacted");
+    assert.equal(
+      observation(type)?.outcome,
+      "pass",
+      "Fixture viewport must load",
+    );
+  assert(
+    observation("javascript")?.details.count > 0,
+    "Fixture JS errors must be observed",
+  );
+  assert(
+    observation("links")?.details.broken > 0,
+    "Fixture broken link must be observed",
+  );
+  assert(
+    observation("network")?.details.count > 0,
+    "Fixture resource failures must be observed",
+  );
+  assert(
+    !JSON.stringify(checks).includes("do-not-store"),
+    "Fixture token must be redacted",
+  );
   const screenshots = checks.filter((check) => check.screenshot_path);
   assert.equal(screenshots.length, 2);
   const screenshotBytes = [];
@@ -373,6 +394,16 @@ try {
       await page.screenshot({ path: "outputs/e2e-findings-desktop.png" });
     await context.close();
   }
+  const releaseProof = await verifyReleaseWorkflow({
+    owner,
+    reviewer: other,
+    outsider: await account(),
+    reportId,
+    checks,
+    browser,
+    site,
+    admin,
+  });
   checked(
     await owner.client.from("projects").delete().eq("id", project.id),
     "delete disposable project",
@@ -391,6 +422,13 @@ try {
     },
   );
   assert.equal(deletedExport.status, 404);
+  for (const reviewId of releaseProof.reviewIds) {
+    const response = await fetch(site + "/api/reviews/" + reviewId, {
+      headers: { Cookie: other.cookie() },
+      redirect: "manual",
+    });
+    assert.equal(response.status, 404);
+  }
   const proof = {
     environment: "disposable local CI Supabase and isolated fixture containers",
     generated_at: new Date().toISOString(),

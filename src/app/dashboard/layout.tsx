@@ -34,8 +34,8 @@ export default async function DashboardLayout({
         <p className="eyebrow">YOUR WORKSPACE</p>
         <WorkspaceNav />
         <p className="sidebar-note">
-          Private projects, controlled-fixture scans, and QA reports. Public
-          scanning and client approvals remain unavailable.
+          Private projects, controlled-fixture scans, QA reports and versioned
+          client reviews. Public scanning remains unavailable.
         </p>
       </aside>
       <div className="workspace-body">

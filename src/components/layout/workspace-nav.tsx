@@ -23,6 +23,12 @@ export function WorkspaceNav() {
       label: "QA reports",
       active: pathname.startsWith("/dashboard/reports"),
     },
+    {
+      href: "/dashboard/releases",
+      label: "Release reviews",
+      active: pathname.startsWith("/dashboard/releases"),
+    },
+    { href: "/reviews", label: "Client reviews", active: false },
     { href: "/", label: "Product home", active: false },
   ];
   return (

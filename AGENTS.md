@@ -15,7 +15,7 @@
 
 ## Authentication and database conventions
 
-- This milestone authorizes Supabase authentication and personal project CRUD, not teams, scans, billing, or AI.
+- Authentication covers personal accounts and project CRUD. Scans, reports and reviews follow their dedicated conventions below; teams, billing and AI remain out of scope.
 - Use @supabase/ssr clients. The server client is server-only. Never introduce a service-role or secret key into web code or public environment variables.
 - Refresh cookies in src/proxy.ts for Next.js 16. Verify users independently in each protected page/action; do not trust getSession or submitted IDs for authorization.
 - Derive project owner_id from auth.uid() in SQL. Keep ownership and immutable columns out of grants and writable application types. Enforce RLS for every new application table and operation.
@@ -26,7 +26,7 @@
 
 ## Scanning engine conventions
 
-- This milestone authorizes the restricted fixture scanning engine, not public URL scanning, reports, approvals, billing, AI, or user-defined scripts.
+- The scanning engine remains fixture-only. Reports and client reviews follow their dedicated conventions below. Public URL scanning, billing, AI and user-defined scripts remain out of scope.
 - Read docs/scanning-engine.md before changing worker/network code. Public scanning stays disabled; do not add an environment bypass or rely only on Playwright routing.
 - Keep the privileged Node orchestrator separate from the browser container. Browser containers receive no application credentials, no host networking, and no privileged mode. Keep the firewall, sandbox, capability drop, and resource bounds intact.
 - Use pgmq leases and worker-only RPCs. Persist artifacts/results before acknowledgement. Reject stale lease writes; test crash recovery, duplicate jobs, quotas, and denied permissions in SQL.
@@ -35,9 +35,17 @@
 
 ## Report/evidence conventions
 
-- Task 04 authorizes private QA reports, manual triage/comments, same-scan evidence references, and bounded PDF export. Public scanning, anonymous sharing, approvals, billing and AI stay unavailable.
+- Task 04 authorizes private QA reports, manual triage/comments, same-scan evidence references, and bounded PDF export. Client reviews follow Task 05 conventions below. Public scanning, anonymous sharing, billing and AI stay unavailable.
 - Derive reports from terminal persisted scans. Keep automated observations immutable and manual triage in separate tables. Unknown historical configuration/authorization must remain unknown.
 - Use owner-checked RPCs and RLS for all report mutations. Composite evidence keys must prevent cross-scan references; preserve original Storage retention.
 - PDF export must not render HTML or fetch arbitrary URLs. Keep PNG validation, local font assets, worker/thread/output limits, Origin checks, export leases, and final ownership recheck intact.
 - Never pass authentication credentials into the rendering worker or persist signed screenshot URLs in reports/PDFs.
 - Keep SQL, unit/API, real PDF, browser-layout fixture and configured live end-to-end verification distinct in handoffs. Do not claim the scan-pipeline prerequisite is complete without evidence.
+## Client release review conventions
+
+- Task 05 authorizes private versioned release reviews, verified-email invitations, feedback, explicit decisions and audit history. Public scanning, anonymous sharing, legal signatures, billing, deployments and AI remain unavailable.
+- Construct snapshots in SQL from real eligible reports; never trust submitted outcomes/snapshots/owners/authors. Snapshot content and digest remain immutable, including drafts. Revisions require a new version and decision.
+- Match invitations against current verified Auth email and accepted user ID, not metadata or JWT email alone. A URL never grants access. Keep invitation GET routes read-only and authentication redirects fixed.
+- Keep owner/report/scan policies intact. Reviewers see only active accepted review snapshots and exact referenced evidence. Stream private evidence with bounded downloads, expiry and final authorization checks; never issue reviewer signed redirects or extend retention.
+- All transitions, feedback and decisions use scoped RPCs with RLS, row locks, restricted grants and append-only audit/decision records. Preserve prior decisions after revocation and revisions; document project-deletion cascades.
+- Test verified separate users, third-account denial, simultaneous/replayed decisions, version forgery, expiry/reissue/revocation, literal HTML, private evidence and the complete browser workflow. Distinguish real SQL/E2E results from mocked tests.
