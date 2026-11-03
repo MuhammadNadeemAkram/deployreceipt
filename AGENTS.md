@@ -41,3 +41,11 @@
 - PDF export must not render HTML or fetch arbitrary URLs. Keep PNG validation, local font assets, worker/thread/output limits, Origin checks, export leases, and final ownership recheck intact.
 - Never pass authentication credentials into the rendering worker or persist signed screenshot URLs in reports/PDFs.
 - Keep SQL, unit/API, real PDF, browser-layout fixture and configured live end-to-end verification distinct in handoffs. Do not claim the scan-pipeline prerequisite is complete without evidence.
+## Client release review conventions
+
+- Task 05 authorizes private versioned release reviews, verified-email invitations, feedback, explicit decisions and audit history. Public scanning, anonymous sharing, legal signatures, billing, deployments and AI remain unavailable.
+- Construct snapshots in SQL from real eligible reports; never trust submitted outcomes/snapshots/owners/authors. Snapshot content and digest remain immutable, including drafts. Revisions require a new version and decision.
+- Match invitations against current verified Auth email and accepted user ID, not metadata or JWT email alone. A URL never grants access. Keep invitation GET routes read-only and authentication redirects fixed.
+- Keep owner/report/scan policies intact. Reviewers see only active accepted review snapshots and exact referenced evidence. Stream private evidence with bounded downloads, expiry and final authorization checks; never issue reviewer signed redirects or extend retention.
+- All transitions, feedback and decisions use scoped RPCs with RLS, row locks, restricted grants and append-only audit/decision records. Preserve prior decisions after revocation and revisions; document project-deletion cascades.
+- Test verified separate users, third-account denial, simultaneous/replayed decisions, version forgery, expiry/reissue/revocation, literal HTML, private evidence and the complete browser workflow. Distinguish real SQL/E2E results from mocked tests.

@@ -6,7 +6,7 @@ A project owner can create one report per terminal scan from the scan detail pag
 
 The report retains the project name at report creation and the target URL from the original scan, not the project's subsequently edited URL. Automated checks remain in scan_checks and their outcomes are never rewritten by manual triage.
 
-Public website scanning remains disabled. There are no anonymous report links, approvals, billing, AI findings, or certification claims.
+Public website scanning remains disabled. There are no anonymous report links, billing, AI findings, or certification claims. Separately authorized private client approval uses an immutable snapshot; see [client release reviews](client-release-reviews.md). The original report and PDF remain owner-only.
 
 ## Schema and migration
 

@@ -40,6 +40,7 @@ export default async function ReportDetail({
   return (
     <>
       <Link href="/dashboard/reports">← Reports</Link>
+      {model.report.kind === "qa" && <p><Link className="button secondary small" href={`/dashboard/releases/new?report=${model.report.id}`}>Create release review</Link></p>}
       <div className="dashboard-title">
         <div>
           <p className="eyebrow">

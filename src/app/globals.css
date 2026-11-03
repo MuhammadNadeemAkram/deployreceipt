@@ -1255,3 +1255,149 @@ select:focus-visible {
 .field select {
   font: inherit;
 }
+/* Versioned release review and client portal */
+.review-main {
+  max-width: 1120px;
+  padding-top: 40px;
+  padding-bottom: 80px;
+}
+.review-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding-top: 24px;
+  padding-bottom: 24px;
+  border-bottom: 1px solid var(--border);
+}
+.review-header nav {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+}
+.review-hero {
+  margin: 28px 0;
+}
+.review-hero h1 {
+  font-size: clamp(2rem, 4vw, 3rem);
+  margin: 10px 0 16px;
+}
+.review-url,
+.review-digest {
+  overflow-wrap: anywhere;
+}
+.review-digest {
+  display: block;
+  padding: 12px 0;
+}
+.review-finding {
+  padding: 24px 0;
+  border-bottom: 1px solid #d5e2d9;
+}
+.review-finding:last-child {
+  border-bottom: 0;
+}
+.review-prose {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.review-alert {
+  border-left: 3px solid #a65c29;
+}
+.review-evidence {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+}
+.review-preview {
+  width: 100%;
+  height: auto;
+  max-height: 520px;
+  object-fit: contain;
+  object-position: top;
+  border: 1px solid #d5e2d9;
+  border-radius: 8px;
+}
+.review-check {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: flex-start;
+  gap: 12px;
+  margin: 14px 0;
+}
+.review-check input {
+  width: auto !important;
+  flex: 0 0 auto;
+  margin-top: 4px;
+}
+.report-panel .stack-form {
+  max-width: 760px;
+  margin-top: 20px;
+}
+.report-panel .stack-form label {
+  display: grid;
+  gap: 8px;
+}
+.report-panel .stack-form input,
+.report-panel .stack-form select,
+.report-panel .stack-form textarea {
+  width: 100%;
+  border: 1px solid #a6bbae;
+  border-radius: 6px;
+  padding: 10px 12px;
+  font: inherit;
+  background: #fff;
+  color: #163c31;
+}
+.report-panel .stack-form fieldset {
+  border: 1px solid #d5e2d9;
+  border-radius: 8px;
+  padding: 16px;
+}
+.review-timeline {
+  padding-left: 24px;
+}
+.review-timeline li {
+  margin: 20px 0;
+}
+.report-filters {
+  display: flex;
+  gap: 16px;
+  align-items: end;
+  margin: 24px 0;
+}
+.report-filters label {
+  display: grid;
+  gap: 8px;
+}
+.report-filters select {
+  padding: 10px;
+  border: 1px solid #a6bbae;
+  border-radius: 6px;
+}
+@media (max-width: 640px) {
+  .review-header {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .review-header nav {
+    flex-wrap: wrap;
+  }
+  .review-main {
+    padding-top: 20px;
+  }
+  .review-evidence {
+    grid-template-columns: 1fr;
+  }
+  .review-finding {
+    padding: 20px 0;
+  }
+  .review-hero h1 {
+    font-size: 2rem;
+  }
+  .report-filters {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}
