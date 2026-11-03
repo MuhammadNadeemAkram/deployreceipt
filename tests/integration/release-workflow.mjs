@@ -348,8 +348,8 @@ export async function verifyReleaseWorkflow({
         "I reviewed this exact version and understand the approval scope.",
       )
       .check();
-    await client.getByLabel(/^I explicitly acknowledge/).check();
-    await client.getByLabel(/^I reviewed the available evidence/).check();
+    await client.getByLabel("I explicitly acknowledge").check();
+    await client.getByLabel("I reviewed the available evidence").check();
     await client
       .getByRole("button", { name: "Record final decision for this version" })
       .click();
