@@ -265,13 +265,11 @@ export function DecisionForm({ review }: { review: ReleaseReview }) {
         Approval accepts this release version; it does not mean every test
         passed, security certification was obtained, or deployment occurred.
       </p>
-      <label>
-        Decision
-        <select name="decision">
-          <option value="changes_requested">Request changes</option>
-          <option value="approved">Approve release</option>
-        </select>
-      </label>
+      <label htmlFor={review.id + "-decision"}>Decision</label>
+      <select id={review.id + "-decision"} name="decision">
+        <option value="changes_requested">Request changes</option>
+        <option value="approved">Approve release</option>
+      </select>
       <label>
         Decision notes (required for changes requested)
         <textarea name="notes" maxLength={2000} rows={4} />

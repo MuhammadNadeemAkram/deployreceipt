@@ -94,7 +94,7 @@ beforeEach(() => {
   };
   m.rpc.mockImplementation(async (name: string) => ({
     data:
-      name === "can_read_review_evidence"
+      name === "can_read_release_artifact"
         ? m.access
         : ["create_release_review", "accept_review_invitation"].includes(name)
           ? id
@@ -160,6 +160,10 @@ it("streams private bytes with no-store and no signed redirect", async () => {
   expect(response.headers.get("content-type")).toBe("image/png");
   expect(response.headers.get("location")).toBeNull();
   expect(m.download).toHaveBeenCalledTimes(1);
+  expect(m.rpc).toHaveBeenCalledWith("can_read_release_artifact", {
+    p_review: id,
+    p_check: check,
+  });
 });
 it("never fetches a supplied external artifact path", async () => {
   (m.rows.release_review_evidence as { path: string }[])[0].path =

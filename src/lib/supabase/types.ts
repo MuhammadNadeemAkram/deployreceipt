@@ -131,6 +131,10 @@ export type Database = {
         };
         Returns: string;
       };
+      can_read_release_artifact: {
+        Args: { p_review: string; p_check: string };
+        Returns: boolean;
+      };
       can_read_review_evidence: { Args: { p_path: string }; Returns: boolean };
       record_scan_configuration: {
         Args: { p_scan_id: string; p_lease: string; p_configuration: Json };

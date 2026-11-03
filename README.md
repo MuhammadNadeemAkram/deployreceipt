@@ -137,7 +137,7 @@ PDF dependencies: pdf-lib and @pdf-lib/fontkit, with a vendored OFL-licensed Not
 
 ## Client review and release approval
 
-Owners can freeze a specific completed QA report, submit a three-day review invitation to one verified-email reviewer, collect finding/release feedback, and record an explicit change request or approval. Later report edits cannot change the snapshot or inherit an earlier approval. Notification delivery is manual; no invitation email is claimed. Apply `20261103000100_release_reviews.sql` before deploying. See [client review architecture, state machine, retention and security](docs/client-release-reviews.md).
+Owners can freeze a specific completed QA report, submit a three-day review invitation to one verified-email reviewer, collect finding/release feedback, and record an explicit change request or approval. Later report edits cannot change the snapshot or inherit an earlier approval. Notification delivery is manual; no invitation email is claimed. Apply `20261103000100_release_reviews.sql` and `20261103000200_review_evidence_scope.sql` before deploying. See [client review architecture, state machine, retention and security](docs/client-release-reviews.md).
 
 Owner routes are under `src/app/dashboard/releases`, the client portal under `src/app/reviews`, invitation instructions under `src/app/review-invitations`, and scoped evidence under `src/app/api/reviews`. Feature modules are in `src/features/releases`. Six RLS-protected tables hold snapshots, invitations, evidence references, comments, decisions and audit events. No new runtime dependencies or credentials are added. Existing owner-only reports/PDFs and fixture-only scanning restrictions remain intact.
 

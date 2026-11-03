@@ -27,8 +27,9 @@ export async function GET(
     !safeArtifactPath(e.path, review.scan_run_id)
   )
     return absent();
-  const permission = await client.rpc("can_read_review_evidence", {
-    p_path: e.path,
+  const permission = await client.rpc("can_read_release_artifact", {
+    p_review: id,
+    p_check: checkId,
   });
   if (permission.error || !permission.data) return absent();
   const result = await client.storage
@@ -41,8 +42,9 @@ export async function GET(
     .catch(() => null);
   if (!result || result.error || !result.data || result.data.size > 2097152)
     return absent();
-  const final = await client.rpc("can_read_review_evidence", {
-    p_path: e.path,
+  const final = await client.rpc("can_read_release_artifact", {
+    p_review: id,
+    p_check: checkId,
   });
   if (final.error || !final.data || Date.parse(e.expires_at) <= Date.now())
     return absent();

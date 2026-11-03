@@ -54,6 +54,7 @@ select is((select count(*)::int from public.qa_reports),0,'original report stays
 select is((select count(*)::int from public.scan_runs),0,'scan history stays private');
 select is((select count(*)::int from public.projects where id='31111111-1111-4111-8111-111111111111'),0,'project stays private');
 select is((select count(*)::int from storage.objects where name like '41111111%'),2,'only exact snapshot artifacts authorized');
+select ok(public.can_read_release_artifact(pg_temp.review_id(),pg_temp.review_id('finding'))=false,'non-screenshot finding is not evidence');
 select is((select count(*)::int from public.review_events),0,'owner audit not exposed');
 insert into release_state values('comment',public.add_review_comment(pg_temp.review_id(),'<img src=x onerror=alert(1)>',pg_temp.review_id('finding'),null,'change_request'));
 select is((select author_id from public.review_comments where id=pg_temp.review_id('comment')),auth.uid(),'comment author derived');
@@ -97,6 +98,8 @@ update public.review_invitations set expires_at=now()-interval '1 second' where 
 set local role authenticated;
 select set_config('request.jwt.claims','{"sub":"22224444-2222-4222-8222-222222222222","role":"authenticated"}',true);
 select is((select count(*)::int from public.release_reviews where id=pg_temp.review_id('v2')),0,'accepted invite revocation removes access');
+select ok(public.can_read_review_evidence('41111111-1111-4111-8111-111111111111/1/desktop.png'),'other active review still authorizes shared bytes');
+select ok(not public.can_read_release_artifact(pg_temp.review_id('v2'),(select check_id from public.release_review_evidence where review_id=pg_temp.review_id() and kind='desktop')),'other active review cannot satisfy revoked review endpoint');
 select throws_ok($$select public.accept_review_invitation(pg_temp.review_id('old_invite'))$$,'P0001','invitation_unavailable','expired invitation not accessible');
 select set_config('request.jwt.claims','{"sub":"11114444-1111-4111-8111-111111111111","role":"authenticated"}',true);
 select public.expire_release_reviews();
