@@ -133,6 +133,35 @@ export async function verifyReleaseWorkflow({
       await client.evaluate(() => globalThis.reviewInjection),
       undefined,
     );
+    const submittedComment = await commentRequest;
+    const requestHeaders = await submittedComment.allHeaders();
+    const csrfHeaders = {
+      Cookie: reviewer.cookie(),
+      Origin: "https://untrusted.example.test",
+      "Content-Type": requestHeaders["content-type"],
+    };
+    if (requestHeaders["next-action"])
+      csrfHeaders["Next-Action"] = requestHeaders["next-action"];
+    const forgedOrigin = await fetch(submittedComment.url(), {
+      method: "POST",
+      headers: csrfHeaders,
+      body: submittedComment.postDataBuffer(),
+      redirect: "manual",
+    });
+    assert(
+      [400, 403, 500].includes(forgedOrigin.status),
+      "Cross-origin Server Action must be rejected",
+    );
+    const afterForged = checked(
+      await owner.client
+        .from("review_comments")
+        .select("id")
+        .eq("review_id", v1)
+        .eq("content", literal),
+      "CSRF persistence check",
+    );
+    assert.equal(afterForged.length, 1);
+
     await client
       .getByLabel("Decision", { exact: true })
       .selectOption("changes_requested");
@@ -440,6 +469,7 @@ export async function verifyReleaseWorkflow({
           revocation_denies_access: true,
           missing_evidence_denied: true,
           literal_html_not_executed: true,
+          cross_origin_action_denied: true,
           audit_events: events.length,
         },
         null,

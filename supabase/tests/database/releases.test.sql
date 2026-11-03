@@ -119,6 +119,15 @@ set local role authenticated;
 select throws_ok($$select public.accept_review_invitation(pg_temp.review_id('old_invite'))$$,'P0001','invitation_unavailable','reissue never revives old link');
 select public.accept_review_invitation(pg_temp.review_id('new_invite'));
 reset role;
+update auth.users set email='changed@example.test' where id='22224444-2222-4222-8222-222222222222';
+set local role authenticated;
+select is((select count(*)::int from public.release_reviews),0,'current changed email removes accepted review access');
+select throws_ok($$select public.add_review_comment(pg_temp.review_id('v3'),'stale email session')$$,'42501','not_authorized','stale JWT cannot preserve old email authorization');
+reset role;
+update auth.users set email='report-b@example.test' where id='22224444-2222-4222-8222-222222222222';
+set local role authenticated;
+
+reset role;
 update public.release_review_evidence set expires_at=now()-interval '1 second';
 set local role authenticated;
 select ok(not public.can_read_review_evidence('41111111-1111-4111-8111-111111111111/1/desktop.png'),'expired snapshot evidence denied despite review access');
