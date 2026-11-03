@@ -111,7 +111,7 @@ Email delivery and persistence against a real Supabase project require the integ
 1. Apply this migration to a development Supabase project and complete two-user authentication/persistence verification.
 2. Add pagination and account/profile management as project volume grows.
 3. Review and verify a production egress architecture before implementing public URL scans; the current queue/browser engine remains fixture-only.
-4. Harden report/evidence operations before a separately authorized client-review and release-approval milestone.
+4. Verify hosted report/review operations, retention cleanup and account-erasure policy before separately authorized notifications, team roles or expanded approval workflows.
 
 ## Contributing
 
