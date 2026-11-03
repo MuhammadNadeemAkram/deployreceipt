@@ -53,7 +53,18 @@ select is((select count(*)::int from public.release_reviews),1,'accepted reviewe
 select is((select count(*)::int from public.qa_reports),0,'original report stays private');
 select is((select count(*)::int from public.scan_runs),0,'scan history stays private');
 select is((select count(*)::int from public.projects where id='31111111-1111-4111-8111-111111111111'),0,'project stays private');
+select set_config('storage.operation','storage.object.get_authenticated',true);
 select is((select count(*)::int from storage.objects where name like '41111111%'),2,'only exact snapshot artifacts authorized');
+select set_config('storage.operation','storage.object.sign',true);
+select is((select count(*)::int from storage.objects where name like '41111111%'),0,'reviewer cannot sign reusable URLs');
+select set_config('storage.operation','storage.object.sign_many',true);
+select is((select count(*)::int from storage.objects where name like '41111111%'),0,'reviewer cannot batch sign');
+select set_config('storage.operation','storage.object.list',true);
+select is((select count(*)::int from storage.objects where name like '41111111%'),0,'reviewer cannot list artifact objects');
+select set_config('storage.operation','',true);
+select is((select count(*)::int from storage.objects where name like '41111111%'),0,'missing Storage operation fails closed');
+select set_config('storage.operation','storage.object.get_authenticated',true);
+
 select ok(public.can_read_release_artifact(pg_temp.review_id(),pg_temp.review_id('finding'))=false,'non-screenshot finding is not evidence');
 select is((select count(*)::int from public.review_events),0,'owner audit not exposed');
 insert into release_state values('comment',public.add_review_comment(pg_temp.review_id(),'<img src=x onerror=alert(1)>',pg_temp.review_id('finding'),null,'change_request'));
@@ -134,6 +145,13 @@ select ok(not public.can_read_review_evidence('41111111-1111-4111-8111-111111111
 -- Current retention can shorten original expiry; it can never extend the snapshot bound.
 select set_config('request.jwt.claims','{"sub":"11114444-1111-4111-8111-111111111111","role":"authenticated"}',true);
 select ok((select count(*) from public.review_events where event_type='release_approved')=1,'approval audit preserved');
+
+reset role;
+update public.release_reviews set expires_at=now()-interval '1 second' where id=pg_temp.review_id('v3');
+update public.review_invitations set expires_at=now()-interval '1 second' where review_id=pg_temp.review_id('v3') and status='accepted';
+set local role authenticated;
+select lives_ok($$select public.manage_release_review(pg_temp.review_id('v3'),'reissue')$$,'reissue handles effective expiry atomically without a page visit');
+select is((select count(*)::int from public.review_events where review_id=pg_temp.review_id('v3') and event_type='review_expired'),2,'both observed and direct-reissue expiries audited');
 delete from public.projects where id='31111111-1111-4111-8111-111111111111';
 select is((select count(*)::int from public.release_reviews),0,'project deletion removes review access');
 reset role;

@@ -109,6 +109,31 @@ export async function verifyReleaseWorkflow({
     );
     assert.equal(unaccepted.length, 0);
     await acceptViaUI(v1);
+    const privatePath = checks.find(
+      (c) => c.check_type === "desktop",
+    ).screenshot_path;
+    const signed = await reviewer.client.storage
+      .from("scan-artifacts")
+      .createSignedUrl(privatePath, 3600);
+    assert(
+      signed.error && !signed.data?.signedUrl,
+      "Reviewer must not mint signed evidence URLs",
+    );
+    const batchSigned = await reviewer.client.storage
+      .from("scan-artifacts")
+      .createSignedUrls([privatePath], 3600);
+    assert(
+      batchSigned.error || batchSigned.data?.every((item) => !item.signedUrl),
+      "Reviewer must not batch sign evidence",
+    );
+    const listed = await reviewer.client.storage
+      .from("scan-artifacts")
+      .list(privatePath.split("/").slice(0, -1).join("/"));
+    assert(
+      listed.error || listed.data?.length === 0,
+      "Reviewer cannot enumerate bucket objects",
+    );
+
     const png = await client.request.get(
       site +
         "/api/reviews/" +
@@ -125,6 +150,12 @@ export async function verifyReleaseWorkflow({
       .getByLabel("Related finding")
       .selectOption(checks.find((c) => c.check_type === "links").id);
     await client.getByLabel("Feedback type").selectOption("change_request");
+    const commentRequest = client.waitForRequest(
+      (request) =>
+        request.method() === "POST" &&
+        new URL(request.url()).pathname === "/reviews/" + v1,
+    );
+
     await client
       .getByRole("button", { name: "Record feedback / reply" })
       .click();
@@ -135,6 +166,11 @@ export async function verifyReleaseWorkflow({
     );
     const submittedComment = await commentRequest;
     const requestHeaders = await submittedComment.allHeaders();
+    assert(
+      requestHeaders["content-type"] &&
+        submittedComment.postDataBuffer()?.length,
+      "Replay requires the actual submitted form body",
+    );
     const csrfHeaders = {
       Cookie: reviewer.cookie(),
       Origin: "https://untrusted.example.test",
@@ -176,6 +212,17 @@ export async function verifyReleaseWorkflow({
       .waitFor();
     await developer.reload();
     await developer.getByText(literal, { exact: true }).waitFor();
+    const feedback = checked(
+      await owner.client
+        .from("review_comments")
+        .select("id")
+        .eq("review_id", v1)
+        .eq("content", literal)
+        .single(),
+      "find client feedback",
+    );
+    await developer.getByLabel("Reply to").selectOption(feedback.id);
+
     await developer
       .getByLabel("Feedback", { exact: true })
       .fill("Developer response: revised QA explanation prepared.");
@@ -461,6 +508,7 @@ export async function verifyReleaseWorkflow({
           v2_digest: revised.snapshot_digest,
           owner_to_reviewer_ui: true,
           real_private_png: true,
+          reviewer_signing_and_listing_denied: true,
           immutable_snapshot: true,
           third_account_denied: true,
           original_project_history_denied: true,
