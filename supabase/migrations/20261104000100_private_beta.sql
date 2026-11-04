@@ -23,7 +23,7 @@ create function public.beta_access_status() returns jsonb language sql stable se
 $$;
 create function public.before_user_created(event jsonb) returns jsonb language plpgsql security definer set search_path='' as $$
 begin
- if (select enforced from public.beta_settings) and not exists(select 1 from public.beta_access where email=lower(event->'user'->>'email') and active) then
+ if not exists(select 1 from public.beta_settings where (not enforced and environment='local') or (enforced and exists(select 1 from public.beta_access where email=lower(event->'user'->>'email') and active))) then
  return jsonb_build_object('error',jsonb_build_object('http_code',403,'message','Private beta onboarding requires operator approval.'));
  end if;
  return '{}'::jsonb;
@@ -102,7 +102,7 @@ alter function public.lease_scan_job() rename to beta_internal_lease_scan_job;
 revoke all on function public.beta_internal_lease_scan_job() from public,anon,authenticated,service_role;
 create function public.lease_scan_job() returns jsonb language plpgsql security definer set search_path='' as $$
 begin
- if exists(select 1 from public.beta_settings where enforced and not scanning_enabled) then return null; end if;
+ if not exists(select 1 from public.beta_settings where scanning_enabled or (not enforced and environment='local')) then return null; end if;
  return public.beta_internal_lease_scan_job();
 end;$$;
 revoke all on function public.lease_scan_job() from public,anon,authenticated;

@@ -71,5 +71,12 @@ select is(public.operational_status()->>'healthy_workers','1','operator heartbea
 select is(public.lease_scan_job(),null::jsonb,'database scan pause denies leases even for old workers');
 select throws_ok($$select public.beta_internal_lease_scan_job()$$,'42501',null,'raw lease function cannot bypass pause');
 reset role;
+select set_config('request.jwt.claims','{}',true);
+delete from public.beta_settings;
+select ok(not public.beta_readiness('staging',false),'missing settings fails readiness closed');
+select is(public.before_user_created('{"user":{"email":"beta-owner@example.test"}}')->'error'->>'http_code','403','missing settings cannot open enrollment');
+set local role service_role;
+select is(public.lease_scan_job(),null::jsonb,'missing settings cannot enable leases');
+reset role;
 select * from finish();
 rollback;
