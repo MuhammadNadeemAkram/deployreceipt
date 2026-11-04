@@ -38,7 +38,9 @@ begin
  if not public.beta_has_access() then raise exception 'beta_access_required' using errcode='42501'; end if;
  if not (select enforced from public.beta_settings) then if tg_op='DELETE' then return old; else return new; end if; end if;
  if tg_op in ('INSERT','UPDATE') and tg_table_name in ('scan_runs','domain_verifications') and not (select scanning_enabled from public.beta_settings) then raise exception 'scanning_disabled'; end if;
- if tg_op='INSERT' and tg_table_name='review_invitations' and not exists(select 1 from public.beta_access where email=new.invited_email and active) then raise exception 'reviewer_not_admitted'; end if;
+ if tg_op='INSERT' and tg_table_name='review_invitations' then
+  if not exists(select 1 from public.beta_access where email=to_jsonb(new)->>'invited_email' and active) then raise exception 'reviewer_not_admitted'; end if;
+ end if;
  if tg_op='INSERT' and tg_table_name='projects' then
   perform pg_advisory_xact_lock(hashtextextended(auth.uid()::text,66));
   if (select count(*) from public.projects where owner_id=auth.uid())>=50 then raise exception 'project_limit'; end if;

@@ -67,7 +67,7 @@ The renderer runs in a separate Node worker thread using a checked-in, openly li
 
 - At most two rendering threads per Node process.
 - A per-user 45-second export lease, plus a 30-second export cooldown enforced in PostgreSQL.
-- A 12-second renderer wall-clock deadline and 124 MiB worker old-generation heap limit.
+- A 12-second renderer wall-clock deadline and 128 MiB worker old-generation heap limit.
 - At most two images, 2 MiB each; authorized Storage downloads have an 8-second abort deadline.
 - PNG signatures, dimensions, channel/depth/interlace and bounded decompression are validated. Nonessential PNG chunks are discarded; arbitrary HTML/SVG or URL resources are rejected.
 - At most 30 PDF pages, 4 MiB output and 512 KiB text-model input.
