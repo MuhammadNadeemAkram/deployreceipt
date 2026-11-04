@@ -71,8 +71,11 @@ export async function verifyBeta({
   assert(nonceA?.includes("strict-dynamic"));
   assert(!nonceA.includes("unsafe-eval"));
   assert.notEqual(nonceA, nonceB, "CSP nonce cannot be reused");
-  await page.goto(site + "/signup");
-  await page.getByText(/Private beta onboarding requires/).waitFor();
+  const publicContext = await browser.newContext();
+  const publicPage = await publicContext.newPage();
+  await publicPage.goto(site + "/signup");
+  await publicPage.getByText(/Private beta onboarding requires/).waitFor();
+  await publicContext.close();
   // A still-unexpired JWT loses database access immediately after local session sign-out.
   const staleSession = createClient(api, publishable, {
     auth: { persistSession: false, autoRefreshToken: false },
