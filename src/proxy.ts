@@ -29,6 +29,8 @@ export async function proxy(request: NextRequest) {
     response.headers.set("Content-Security-Policy", policy);
     response.headers.set("x-request-id", requestId);
     response.headers.set("Cache-Control", "private, no-store");
+    if (process.env.APP_ENV === "staging")
+      response.headers.set("X-Robots-Tag", "noindex, nofollow, noarchive");
     if (process.env.APP_ENV && process.env.APP_ENV !== "local")
       response.headers.set("Strict-Transport-Security", "max-age=31536000");
     return response;

@@ -1,3 +1,5 @@
+import Link from "next/link";
+import { isLocalSignupEnabled } from "../config";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getSupabaseConfig } from "@/lib/supabase/config";
@@ -31,7 +33,7 @@ const notices: Record<string, string> = {
   "service-unavailable":
     "Account services could not be reached. Please try again.",
   "invalid-link":
-    "This confirmation or reset link is invalid, expired, or already used. Request a new reset link, or submit signup again to request another confirmation.",
+    "This confirmation or reset link is invalid, expired, or already used. Request a new reset link, or ask your beta operator to resend your invitation.",
 };
 export async function AuthPage({
   mode,
@@ -65,7 +67,23 @@ export async function AuthPage({
             {notices[notice]}
           </p>
         )}
-        {configured ? <AuthForm mode={mode} /> : <ConfigurationNotice />}
+        {mode === "signup" && !isLocalSignupEnabled() ? (
+          <div className="notice">
+            <p>
+              Account creation is handled by the beta operator. There is no
+              public registration form.
+            </p>
+            <p>
+              Already invited? Follow your invitation email, then{" "}
+              <Link href="/login">sign in</Link>. For an expired invitation,
+              contact the operator.
+            </p>
+          </div>
+        ) : configured ? (
+          <AuthForm mode={mode} />
+        ) : (
+          <ConfigurationNotice />
+        )}
       </section>
     </main>
   );

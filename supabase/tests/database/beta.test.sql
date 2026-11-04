@@ -10,7 +10,8 @@ select ok(not (select scanning_enabled from public.beta_settings),'fresh install
 select ok(public.beta_readiness('staging',false),'clean restricted staging schema is ready');
 select ok(not public.beta_readiness('production',false),'environment binding enforced');
 select throws_ok($$update public.beta_settings set enforced=false$$,'23514',null,'hosted admission cannot be disabled');
-set local role supabase_auth_admin;
+-- Managed Auth roles cannot be SET ROLE by the local postgres test runner.
+select ok(has_function_privilege('supabase_auth_admin','public.before_user_created(jsonb)','execute'),'Auth role may execute enrollment hook');
 select is(public.before_user_created('{"user":{"email":"beta-owner@example.test"}}'), '{}'::jsonb,'approved signup hook');
 select is(public.before_user_created('{"user":{"email":"unknown@example.test"}}')->'error'->>'http_code','403','unapproved signup denied');
 reset role;
