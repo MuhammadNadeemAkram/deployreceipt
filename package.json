@@ -4,7 +4,7 @@
   "description": "Open-source website QA and release approval platform.",
   "scripts": {
     "dev": "next dev --webpack",
-    "build": "next build --webpack",
+    "build": "node --env-file-if-exists=.env.local scripts/validate-environment.mjs && next build --webpack",
     "start": "next start",
     "lint": "eslint . --max-warnings=0",
     "typecheck": "next typegen && tsc --noEmit",
@@ -12,7 +12,9 @@
     "test:watch": "vitest",
     "test:db": "supabase test db",
     "worker": "node --env-file=.env.worker --import tsx worker/main.ts",
-    "test:browser": "vitest run --config vitest.browser.config.mts"
+    "test:browser": "vitest run --config vitest.browser.config.mts",
+    "validate:env": "node --env-file-if-exists=.env.local scripts/validate-environment.mjs",
+    "audit:security": "node scripts/dependency-audit.mjs"
   },
   "repository": {
     "type": "git",

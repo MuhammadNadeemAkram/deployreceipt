@@ -339,7 +339,7 @@ async function render(model, generatedAt) {
     });
   });
   const bytes = await pdf.save();
-  if (bytes.length > 8388608) throw new Error("pdf_output_limit");
+  if (bytes.length > 4194304) throw new Error("pdf_output_limit");
   return bytes;
 }
 try {

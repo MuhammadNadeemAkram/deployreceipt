@@ -4,7 +4,10 @@ export type FormState = {
   fieldErrors?: Record<string, string>;
 };
 export type AuthMode =
-  "login" | "signup" | "forgot-password" | "reset-password";
+  | "login"
+  | "signup"
+  | "forgot-password"
+  | "reset-password";
 
 export function text(form: FormData, field: string) {
   const value = form.get(field);
@@ -41,7 +44,13 @@ export function validateAuth(mode: AuthMode, form: FormData) {
 }
 
 export function authDestination(path: string) {
-  return path === "/dashboard" || path.startsWith("/dashboard/");
+  return (
+    path === "/dashboard" ||
+    path.startsWith("/dashboard/") ||
+    path === "/reviews" ||
+    path.startsWith("/reviews/") ||
+    path.startsWith("/api/")
+  );
 }
 
 export function callbackDestination(value: string | null) {

@@ -3,6 +3,8 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends iptables util-linux && rm -rf /var/lib/apt/lists/*
 COPY package*.json ./
 RUN npm ci --omit=dev --ignore-scripts
-COPY worker/browser-server.mjs worker/browser-entrypoint.sh worker/egress-test.mjs ./worker/
+COPY worker/browser-server.mjs worker/browser-entrypoint.sh worker/egress-test.mjs worker/healthcheck.mjs ./worker/
 RUN chmod 755 worker/browser-entrypoint.sh
 ENTRYPOINT ["/app/worker/browser-entrypoint.sh"]
+
+HEALTHCHECK --interval=15s --timeout=3s --start-period=30s --retries=3 CMD ["node","worker/healthcheck.mjs","/tmp/deployreceipt-browser-health.json"]

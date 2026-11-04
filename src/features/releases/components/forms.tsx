@@ -78,7 +78,7 @@ export function CreateReleaseForm({
         <textarea name="notes" rows={4} maxLength={4000} />
       </label>
       <label>
-        Primary reviewer email
+        Approved beta reviewer email
         <input
           type="email"
           name="email"

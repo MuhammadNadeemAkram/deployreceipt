@@ -93,7 +93,7 @@ The typed schema contracts in src/lib/supabase/types.ts reflect the migration an
 | Area                                                   | Status                                                                      |
 | ------------------------------------------------------ | --------------------------------------------------------------------------- |
 | Responsive landing page and GitHub links               | Implemented; original product presentation preserved                        |
-| Signup, confirmation, login, password reset, logout    | Implemented; requires configured Supabase Auth                              |
+| Signup, confirmation, login, password reset, logout    | Invite-only beta onboarding; requires configured Supabase Auth                              |
 | Private dashboard and project CRUD                     | Implemented; requires applied migration                                     |
 | Profiles                                               | Created automatically on auth user insertion, including before confirmation |
 | PostgreSQL RLS and restricted grants                   | Migration and database authorization suite included                         |
@@ -142,3 +142,13 @@ Owners can freeze a specific completed QA report, submit a three-day review invi
 Owner routes are under `src/app/dashboard/releases`, the client portal under `src/app/reviews`, invitation instructions under `src/app/review-invitations`, and scoped evidence under `src/app/api/reviews`. Feature modules are in `src/features/releases`. Six RLS-protected tables hold snapshots, invitations, evidence references, comments, decisions and audit events. No new runtime dependencies or credentials are added. Existing owner-only reports/PDFs and fixture-only scanning restrictions remain intact.
 
 The complete disposable CI workflow now covers owner-to-reviewer v1 change requests, v2 approvals, third-account denial, concurrent decisions, replay, revocation, missing evidence and separate historical records. Inspect its result and evidence artifact for the current revision; mocked tests do not establish this path. The review audit trail is not a legally qualified electronic signature and is removed by explicit project deletion.
+
+## Private beta hardening (Task 06)
+
+Hosted status: **blocked by owner configuration**; no staging URL or production launch is claimed. Admission is now fail-closed by default: operator-approved verified accounts with live sessions only, enforced in the app and database/Storage. The signup page provides onboarding instructions. Approved reviewers need separate operator admission. Hosted scans default disabled and the dashboard labels this clearly.
+
+Read the [deployment, environment, migration, worker, backup/rollback and acceptance guide](docs/private-beta-deployment.md), [security findings/risk register](docs/beta-security-review.md), and [actual validation record](docs/beta-validation.md). Apply the new forward migration `20261104000100_private_beta.sql` before deploying this version. Existing migrations/license are preserved. No new dependencies were added.
+
+Use `.env.staging.example` for isolated Preview settings; production configuration is prepared in `.env.production.example` but requires separately approved activation. `npm run validate:env` checks environment binding without printing credentials. `npm run audit:security` enforces the documented expiring dev-only exception and rejects other vulnerabilities. Vercel automatic Git deployments are disabled; manual staging smoke never deploys.
+
+Readiness/liveness: `/api/ready` and `/api/health`. Operational code is in `src/lib/operations`, environment validation in `server/environment.mjs`, operator SQL in the new migration, and worker health checks under `worker/`. All hosted acceptance items and backup/alerting setup remain owner-run steps. Next task: configure protected staging, verify hosted auth/PDF/retention and an isolated restore drill before expanding the beta.

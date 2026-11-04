@@ -11,6 +11,19 @@ export async function authenticate(
 ): Promise<FormState> {
   if (!["login", "signup", "forgot-password", "reset-password"].includes(mode))
     return { error: "Unsupported request." };
+  if (
+    mode === "signup" &&
+    !(
+      process.env.APP_ENV === "local" &&
+      process.env.LOCAL_PUBLIC_SIGNUP === "enabled" &&
+      process.env.NODE_ENV !== "production" &&
+      process.env.VERCEL !== "1"
+    )
+  )
+    return {
+      error:
+        "DeployReceipt is invite-only. Ask the beta operator to approve and onboard your verified email.",
+    };
   const { email, password, fullName, errors } = validateAuth(mode, form);
   if (Object.keys(errors).length)
     return {

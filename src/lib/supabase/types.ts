@@ -82,6 +82,24 @@ export type Database = {
     };
     Views: { [_ in never]: never };
     Functions: {
+      beta_access_status: {
+        Args: Record<string, never>;
+        Returns: {
+          allowed: boolean;
+          enforced: boolean;
+          environment: string;
+          scanning_enabled: boolean;
+        };
+      };
+      beta_readiness: {
+        Args: { p_environment: string; p_scanning: boolean };
+        Returns: boolean;
+      };
+      worker_tick: {
+        Args: { p_instance: string; p_ready: boolean; p_error?: string | null };
+        Returns: { scanning_enabled: boolean };
+      };
+      operational_status: { Args: Record<string, never>; Returns: Json };
       create_release_review: {
         Args: {
           p_report: string;

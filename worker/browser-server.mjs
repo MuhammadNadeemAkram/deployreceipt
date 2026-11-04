@@ -1,5 +1,6 @@
+import { writeFile } from "node:fs/promises";
 import { chromium } from "playwright";
-await chromium.launchServer({
+const server = await chromium.launchServer({
   host: "0.0.0.0",
   port: 9000,
   wsPath: "/scan-browser",
@@ -13,3 +14,18 @@ await chromium.launchServer({
   ],
 });
 console.info("Restricted fixture browser ready");
+
+server.on("close", () => process.exit(1));
+const heartbeat = async () => {
+  await writeFile(
+    "/tmp/deployreceipt-browser-health.json",
+    JSON.stringify({
+      ready: server.process()?.exitCode === null,
+      at: Date.now(),
+    }),
+  );
+};
+await heartbeat();
+setInterval(() => {
+  void heartbeat().catch(() => process.exit(1));
+}, 5000).unref();

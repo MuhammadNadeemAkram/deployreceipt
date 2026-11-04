@@ -7,6 +7,7 @@ import {
 import { loadPdfEvidence } from "@/features/reports/pdf-evidence";
 import { getSiteOrigin } from "@/lib/supabase/config";
 export const runtime = "nodejs";
+export const maxDuration=60;
 export const dynamic = "force-dynamic";
 export async function POST(
   request: Request,

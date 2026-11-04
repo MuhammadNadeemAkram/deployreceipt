@@ -12,7 +12,7 @@ const content: Record<AuthMode, { title: string; description: string }> = {
   signup: {
     title: "A clearer place to start.",
     description:
-      "Create your DeployReceipt account and organize your website projects.",
+      "Private beta onboarding requires operator approval. Use your approved, verified email.",
   },
   "forgot-password": {
     title: "Reset your password.",

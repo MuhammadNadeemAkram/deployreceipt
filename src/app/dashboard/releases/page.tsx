@@ -12,7 +12,9 @@ export default async function ReleaseReviews({
   const { status } = await searchParams;
   let query = client
     .from("release_reviews")
-    .select("*")
+    .select(
+      "id,title,version,status,created_at,project_name:snapshot->>project_name",
+    )
     .eq("owner_id", user.id)
     .order("created_at", { ascending: false })
     .limit(50);
@@ -58,7 +60,7 @@ export default async function ReleaseReviews({
                 <Link href={`/dashboard/releases/${r.id}`}>{r.title}</Link>
               </h2>
               <p>
-                {r.snapshot.project_name} · version {r.version}
+                {r.project_name} · version {r.version}
               </p>
               <p>
                 {r.status.replaceAll("_", " ")} · {r.created_at}

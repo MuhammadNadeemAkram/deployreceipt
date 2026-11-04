@@ -4,7 +4,15 @@ export function getSupabaseConfig() {
   if (!url || !key) return null;
   try {
     const parsed = new URL(url);
-    if (!["http:", "https:"].includes(parsed.protocol)) return null;
+    if (
+      !["http:", "https:"].includes(parsed.protocol) ||
+      parsed.username ||
+      parsed.password ||
+      parsed.pathname !== "/" ||
+      parsed.search ||
+      parsed.hash
+    )
+      return null;
     // Reject server secrets even if mistakenly assigned to the public variable.
     if (key.startsWith("sb_secret_")) return null;
     if (!key.startsWith("sb_publishable_")) return null;
