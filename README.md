@@ -4,6 +4,8 @@ An open-source quality assurance and release approval platform for web developer
 
 Run automated website checks, capture test evidence, track issues, and share release reports with clients for review and approval.
 
+**Private beta status:** invite-only admission is enforced by default. Hosted deployment is blocked by owner configuration; follow the [private beta deployment guide](docs/private-beta-deployment.md). No production launch is claimed.
+
 **Current milestone:** email/password authentication and personal project management are implemented. A restricted asynchronous fixture-scanning engine is implemented. Public URL scanning remains disabled. Private QA reports, human triage, and bounded PDF export are implemented. Private versioned client release reviews and approval decisions are implemented. Teams, billing, AI and public scanning remain unavailable. No scan is initiated merely by saving a project URL.
 
 ## Setup
@@ -18,12 +20,15 @@ npm ci
 Copy .env.example to .env.local and set:
 
 ```dotenv
-NEXT_PUBLIC_SUPABASE_URL=https://YOUR_PROJECT.supabase.co
-NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=YOUR_PUBLISHABLE_KEY
+APP_ENV=local
+NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:54321
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=YOUR_LOCAL_PUBLISHABLE_KEY
 NEXT_PUBLIC_SITE_URL=http://localhost:3000
 ```
 
 Use the **publishable** key beginning with sb_publishable_. This app deliberately rejects secret keys and legacy JWT keys in that setting. No service-role key or database password is used by the web application. Public-prefixed values are bundled for the browser. Never place privileged credentials in them or commit .env.local.
+
+The example above uses a disposable local Supabase stack. Apply all migrations and configure beta admission using the deployment guide; a fresh database denies unadmitted accounts. A local production build accepts only loopback origins. Use the staging example and deployment guide for a hosted Supabase project and HTTPS web deployment.
 
 Without configuration, public pages still render and account pages explain what is missing. Dashboard operations fail closed. For complete setup, migrations, confirmation/reset templates, and verification, read [Supabase setup](docs/supabase-setup.md).
 
@@ -60,7 +65,7 @@ src/
       login/ signup/            Email/password entry points
       forgot-password/          Reset request
       reset-password/           Verified-session password update
-    auth/callback/              PKCE code exchange or email/recovery token verification
+    auth/callback/              PKCE or email/recovery/invitation token verification
     dashboard/                  Protected workspace, loading/error/not-found states
       projects/new/             Create project
       projects/[id]/edit/       Edit owned project
@@ -108,8 +113,8 @@ Email delivery and persistence against a real Supabase project require the integ
 
 ## Roadmap
 
-1. Apply this migration to a development Supabase project and complete two-user authentication/persistence verification.
-2. Add pagination and account/profile management as project volume grows.
+1. Configure protected staging and verify hosted invitation/recovery email, private PDF, evidence retention and two-user acceptance.
+2. Complete an isolated database/Storage restore drill and configure operational alerts; revisit pagination as project volume grows.
 3. Review and verify a production egress architecture before implementing public URL scans; the current queue/browser engine remains fixture-only.
 4. Verify hosted report/review operations, retention cleanup and account-erasure policy before separately authorized notifications, team roles or expanded approval workflows.
 
