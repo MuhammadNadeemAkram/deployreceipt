@@ -322,6 +322,21 @@ describe("callback and session proxy", () => {
     expect(mocks.auth.exchangeCodeForSession).toHaveBeenCalledWith("test");
     expect(result.headers.get("cache-control")).toContain("no-store");
   });
+  it("accepts operator invite tokens only at a fixed password setup destination", async () => {
+    mocks.auth.verifyOtp.mockResolvedValue({ error: null });
+    const result = await GET(
+      new NextRequest(
+        "https://app.example.test/auth/callback?token_hash=fixture&type=invite&next=https://untrusted.test",
+      ),
+    );
+    expect(mocks.auth.verifyOtp).toHaveBeenCalledWith({
+      token_hash: "fixture",
+      type: "invite",
+    });
+    expect(result.headers.get("location")).toBe(
+      "https://app.example.test/reset-password",
+    );
+  });
   it("supports recovery token hashes and invalid/expired codes", async () => {
     mocks.auth.verifyOtp.mockResolvedValue({ error: null });
     const recovery = await GET(
@@ -429,4 +444,3 @@ describe("private beta request boundaries", () => {
     expect(a.headers.get("cache-control")).toBe("private, no-store");
   });
 });
-

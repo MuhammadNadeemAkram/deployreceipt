@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { randomUUID, randomBytes } from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
 import { writeFile } from "node:fs/promises";
 export async function verifyBeta({
@@ -20,6 +21,63 @@ export async function verifyBeta({
   };
   assert.equal((await fetch(site + "/api/health")).status, 200);
   assert.equal((await fetch(site + "/api/ready")).status, 200);
+  // Exercise server-side operator invitation onboarding without sending mail or logging tokens.
+  const invitedEmail = "invited-" + randomUUID() + "@example.test";
+  checked(
+    await admin.from("beta_access").insert({ email: invitedEmail }),
+    "admit invitation recipient",
+  );
+  const invitation = checked(
+    await admin.auth.admin.generateLink({
+      type: "invite",
+      email: invitedEmail,
+    }),
+    "generate operator invitation",
+  );
+  const inviteContext = await browser.newContext();
+  try {
+    const callback = await inviteContext.request
+      .get(
+        site +
+          "/auth/callback?type=invite&token_hash=" +
+          encodeURIComponent(invitation.properties.hashed_token),
+        { maxRedirects: 0 },
+      )
+      .catch(() => {
+        throw Error("Operator invitation callback unavailable");
+      });
+    assert.equal(callback.status(), 303);
+    assert.equal(
+      new URL(callback.headers().location, site).pathname,
+      "/reset-password",
+    );
+    const invitePage = await inviteContext.newPage();
+    await invitePage.goto(site + "/reset-password");
+    const password = randomBytes(24).toString("base64url") + "Aa1!";
+    await invitePage.getByLabel("New password", { exact: true }).fill(password);
+    await invitePage
+      .getByLabel("Confirm password", { exact: true })
+      .fill(password);
+    await invitePage
+      .getByRole("button", { name: "Set new password", exact: true })
+      .click();
+    await invitePage.waitForURL(site + "/login?notice=password-updated");
+    await invitePage
+      .getByLabel("Email address", { exact: true })
+      .fill(invitedEmail);
+    await invitePage.getByLabel("Password", { exact: true }).fill(password);
+    await invitePage
+      .getByRole("button", { name: "Sign in", exact: true })
+      .click();
+    await invitePage.waitForURL(site + "/dashboard");
+    await invitePage
+      .getByRole("heading", { name: "Your websites, organized." })
+      .waitFor();
+  } finally {
+    await inviteContext.close();
+    await admin.auth.admin.deleteUser(invitation.user.id);
+    await admin.from("beta_access").delete().eq("email", invitedEmail);
+  }
   const context = await browser.newContext({
     viewport: { width: 1440, height: 1000 },
   });
