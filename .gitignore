@@ -164,3 +164,5 @@ supabase/.branches/
 /work/
 /outputs/
 /tmp/
+!.env.staging.example
+!.env.production.example

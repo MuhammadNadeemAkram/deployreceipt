@@ -1,4 +1,7 @@
 begin;
+-- Isolate legacy feature authorization; private-beta enforcement has its own suite.
+update public.beta_settings set environment='local',enforced=false;
+
 create extension if not exists pgtap with schema extensions;
 set search_path = public, extensions;
 select no_plan();

@@ -49,3 +49,12 @@
 - Keep owner/report/scan policies intact. Reviewers see only active accepted review snapshots and exact referenced evidence. Stream private evidence with bounded downloads, expiry and final authorization checks; never issue reviewer signed redirects or extend retention.
 - All transitions, feedback and decisions use scoped RPCs with RLS, row locks, restricted grants and append-only audit/decision records. Preserve prior decisions after revocation and revisions; document project-deletion cascades.
 - Test verified separate users, third-account denial, simultaneous/replayed decisions, version forgery, expiry/reissue/revocation, literal HTML, private evidence and the complete browser workflow. Distinguish real SQL/E2E results from mocked tests.
+
+## Private beta operations
+
+- Hosted deployments require distinct staging/production project refs and enforced verified-email/live-session admission in SQL and app boundaries. Keep direct Auth signup guarded by the hosted Before User Created hook. Review invitations never grant beta admission.
+- Preserve restrictive beta RLS/Storage policies, operator-only tables and database-backed quotas. Only explicitly configured local databases may bypass admission.
+- Keep web scanning disabled unless the exact fixture-only runtime has passed isolation checks; Vercel cannot host the worker. Never expose the orchestrator secret to web or browser code.
+- Maintain nonce CSP, HttpOnly/Secure/Lax server auth cookies, sanitized operational event allowlists and bounded health checks. Never log raw dependency URLs/errors or customer content.
+- Run audit:security with other required checks; the documented dev-only exception expires2026-12-04. Do not broaden it to runtime/new advisories.
+- Git auto deployment stays disabled. Production activation and live database operations need a separate authorized release. Update deployment/risk/validation docs with actual executed evidence, including unavailable hosted checks.

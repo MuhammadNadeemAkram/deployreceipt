@@ -26,6 +26,7 @@ const mocks = vi.hoisted(() => {
     query,
     auth,
     from: vi.fn(),
+    rpc: vi.fn(),
     createClient: vi.fn(),
     ssr: vi.fn(),
     revalidate: vi.fn(),
@@ -68,6 +69,17 @@ const project = () =>
   });
 beforeEach(() => {
   vi.resetAllMocks();
+  vi.stubEnv("APP_ENV", "local");
+  vi.stubEnv("LOCAL_PUBLIC_SIGNUP", "enabled");
+  mocks.rpc.mockResolvedValue({
+    data: {
+      allowed: true,
+      enforced: true,
+      environment: "local",
+      scanning_enabled: false,
+    },
+    error: null,
+  });
   vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://example.supabase.co");
   vi.stubEnv(
     "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY",
@@ -87,7 +99,11 @@ beforeEach(() => {
     data: { claims: { sub: userId } },
     error: null,
   });
-  mocks.createClient.mockResolvedValue({ auth: mocks.auth, from: mocks.from });
+  mocks.createClient.mockResolvedValue({
+    auth: mocks.auth,
+    from: mocks.from,
+    rpc: mocks.rpc,
+  });
   mocks.ssr.mockReturnValue({ auth: mocks.auth });
   mocks.from.mockReturnValue(mocks.query);
   for (const method of [
@@ -306,6 +322,21 @@ describe("callback and session proxy", () => {
     expect(mocks.auth.exchangeCodeForSession).toHaveBeenCalledWith("test");
     expect(result.headers.get("cache-control")).toContain("no-store");
   });
+  it("accepts operator invite tokens only at a fixed password setup destination", async () => {
+    mocks.auth.verifyOtp.mockResolvedValue({ error: null });
+    const result = await GET(
+      new NextRequest(
+        "https://app.example.test/auth/callback?token_hash=fixture&type=invite&next=https://untrusted.test",
+      ),
+    );
+    expect(mocks.auth.verifyOtp).toHaveBeenCalledWith({
+      token_hash: "fixture",
+      type: "invite",
+    });
+    expect(result.headers.get("location")).toBe(
+      "https://app.example.test/reset-password",
+    );
+  });
   it("supports recovery token hashes and invalid/expired codes", async () => {
     mocks.auth.verifyOtp.mockResolvedValue({ error: null });
     const recovery = await GET(
@@ -362,5 +393,54 @@ describe("callback and session proxy", () => {
     const response = await proxy(request);
     expect(response.cookies.get("refreshed")?.value).toBe("test");
     expect(request.cookies.get("refreshed")?.value).toBe("test");
+  });
+});
+
+describe("private beta request boundaries", () => {
+  it("denies a valid Auth identity without beta admission", async () => {
+    mocks.rpc.mockResolvedValue({
+      data: { allowed: false, enforced: true, environment: "local" },
+      error: null,
+    });
+    await expect(requireUser()).rejects.toThrow("REDIRECT:/beta-access");
+  });
+  it("fails closed when beta database validation is unavailable", async () => {
+    mocks.rpc.mockResolvedValue({ data: null, error: { code: "unavailable" } });
+    await expect(requireUser()).rejects.toThrow(
+      "REDIRECT:/login?notice=service-unavailable",
+    );
+  });
+  it("does not call public signup by default", async () => {
+    vi.stubEnv("LOCAL_PUBLIC_SIGNUP", "");
+    const result = await authenticate(
+      "signup",
+      {},
+      form({
+        email: "approved@example.test",
+        password: "TwelveLetters123!",
+        confirm_password: "TwelveLetters123!",
+      }),
+    );
+    expect(mocks.auth.signUp).not.toHaveBeenCalled();
+    expect(result.error).toContain("invite-only");
+  });
+  it("generates fresh CSP nonces and correlation IDs for public responses", async () => {
+    const a = await proxy(new NextRequest("https://app.example.test/"));
+    const b = await proxy(
+      new NextRequest("https://app.example.test/", {
+        headers: { "x-request-id": "attacker" },
+      }),
+    );
+    expect(a.headers.get("content-security-policy")).toContain(
+      "strict-dynamic",
+    );
+    expect(a.headers.get("content-security-policy")).not.toBe(
+      b.headers.get("content-security-policy"),
+    );
+    expect(a.headers.get("x-request-id")).not.toBe(
+      b.headers.get("x-request-id"),
+    );
+    expect(b.headers.get("x-request-id")).not.toBe("attacker");
+    expect(a.headers.get("cache-control")).toBe("private, no-store");
   });
 });

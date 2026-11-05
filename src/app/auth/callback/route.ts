@@ -28,7 +28,7 @@ export async function GET(request: NextRequest) {
       if (!error) destination = callbackDestination(params.get("next"));
     } else if (
       tokenHash &&
-      (type === "email" || type === "recovery") &&
+      (type === "email" || type === "recovery" || type === "invite") &&
       !params.has("error")
     ) {
       const { error } = await client.auth.verifyOtp({
@@ -36,7 +36,10 @@ export async function GET(request: NextRequest) {
         type,
       });
       if (!error)
-        destination = type === "recovery" ? "/reset-password" : "/dashboard";
+        destination =
+          type === "recovery" || type === "invite"
+            ? "/reset-password"
+            : "/dashboard";
     }
   } catch {
     /* Callback URLs contain short-lived credentials; do not log them. */

@@ -46,7 +46,7 @@ export async function renderReportPdf(
     worker.once(
       "message",
       (result: { ok: boolean; bytes?: Uint8Array; code?: string }) => {
-        if (!result.ok || !result.bytes || result.bytes.length > 8388608)
+        if (!result.ok || !result.bytes || result.bytes.length > 4194304)
           finish(new PdfError(result.code ?? "pdf_render_failed"));
         else finish(null, result.bytes);
       },

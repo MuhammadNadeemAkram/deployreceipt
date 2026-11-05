@@ -1,3 +1,5 @@
+import { writeFile } from "node:fs/promises";
+import { randomUUID } from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
 import { chromium } from "playwright";
 import type { Database } from "../src/lib/supabase/types";
@@ -70,6 +72,31 @@ const store: JobStore = {
     await rpc(client.rpc("ack_scan_job", { p_message_id: messageId }));
   },
 };
+const instance = randomUUID();
+let lastHeartbeat = 0,
+  scanningEnabled = false;
+async function health(
+  ready: boolean,
+  error?: "database_unavailable" | "worker_failure",
+) {
+  const data = await rpc(
+    client.rpc("worker_tick", {
+      p_instance: instance,
+      p_ready: ready,
+      p_error: error ?? null,
+    }),
+  );
+  scanningEnabled = Boolean(data?.scanning_enabled);
+  lastHeartbeat = Date.now();
+  await writeFile(
+    "/tmp/deployreceipt-worker-health.json",
+    JSON.stringify({
+      ready,
+      at: lastHeartbeat,
+      phase: scanningEnabled ? "fixture" : "paused",
+    }),
+  );
+}
 let stopping = false,
   lastCleanup = 0;
 process.on("SIGTERM", () => {
@@ -79,8 +106,27 @@ process.on("SIGINT", () => {
   stopping = true;
 });
 async function main() {
+  // Keep readiness fresh during a bounded scan, independently of queue polling.
+  let heartbeatPending = false;
+  const timer = setInterval(() => {
+    if (heartbeatPending || stopping) return;
+    heartbeatPending = true;
+    void health(true)
+      .catch(async () => {
+        scanningEnabled = false;
+        await writeFile(
+          "/tmp/deployreceipt-worker-health.json",
+          JSON.stringify({ ready: false, at: Date.now() }),
+        ).catch(() => {});
+      })
+      .finally(() => {
+        heartbeatPending = false;
+      });
+  }, 15000);
+  timer.unref();
   while (!stopping) {
     try {
+      if (Date.now() - lastHeartbeat > 15000) await health(true);
       if (Date.now() - lastCleanup > 60000) {
         const paths = await rpc(client.rpc("expired_scan_artifacts", {}));
         if (paths?.length) {
@@ -90,6 +136,10 @@ async function main() {
           if (error) throw new Error("cleanup_failed");
         }
         lastCleanup = Date.now();
+      }
+      if (!scanningEnabled) {
+        await new Promise((resolve) => setTimeout(resolve, 2000));
+        continue;
       }
       const data = await rpc(client.rpc("lease_scan_job", {}));
       if (!data) {
@@ -137,9 +187,18 @@ async function main() {
             verify.settings.mode,
           ),
       );
-      console.info("Job attempt processed", job.message_id);
+      console.info(JSON.stringify({ event: "worker_attempt_processed" }));
     } catch {
-      console.error("Worker operation failed; unacknowledged jobs will retry.");
+      console.error(
+        JSON.stringify({
+          event: "worker_dependency_unavailable",
+          code: "worker_failure",
+        }),
+      );
+      await writeFile(
+        "/tmp/deployreceipt-worker-health.json",
+        JSON.stringify({ ready: false, at: Date.now() }),
+      ).catch(() => {});
       await new Promise((resolve) => setTimeout(resolve, 3000));
     }
   }

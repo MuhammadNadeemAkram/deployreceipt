@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { site } from "@/lib/site";
 import "./globals.css";
+export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
   title: {
     default: "DeployReceipt — Test. Review. Approve. Ship.",

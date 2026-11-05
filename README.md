@@ -4,6 +4,8 @@ An open-source quality assurance and release approval platform for web developer
 
 Run automated website checks, capture test evidence, track issues, and share release reports with clients for review and approval.
 
+**Private beta status:** invite-only admission is enforced by default. Hosted deployment is blocked by owner configuration; follow the [private beta deployment guide](docs/private-beta-deployment.md). No production launch is claimed.
+
 **Current milestone:** email/password authentication and personal project management are implemented. A restricted asynchronous fixture-scanning engine is implemented. Public URL scanning remains disabled. Private QA reports, human triage, and bounded PDF export are implemented. Private versioned client release reviews and approval decisions are implemented. Teams, billing, AI and public scanning remain unavailable. No scan is initiated merely by saving a project URL.
 
 ## Setup
@@ -18,12 +20,15 @@ npm ci
 Copy .env.example to .env.local and set:
 
 ```dotenv
-NEXT_PUBLIC_SUPABASE_URL=https://YOUR_PROJECT.supabase.co
-NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=YOUR_PUBLISHABLE_KEY
+APP_ENV=local
+NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:54321
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=YOUR_LOCAL_PUBLISHABLE_KEY
 NEXT_PUBLIC_SITE_URL=http://localhost:3000
 ```
 
 Use the **publishable** key beginning with sb_publishable_. This app deliberately rejects secret keys and legacy JWT keys in that setting. No service-role key or database password is used by the web application. Public-prefixed values are bundled for the browser. Never place privileged credentials in them or commit .env.local.
+
+The example above uses a disposable local Supabase stack. Apply all migrations and configure beta admission using the deployment guide; a fresh database denies unadmitted accounts. A local production build accepts only loopback origins. Use the staging example and deployment guide for a hosted Supabase project and HTTPS web deployment.
 
 Without configuration, public pages still render and account pages explain what is missing. Dashboard operations fail closed. For complete setup, migrations, confirmation/reset templates, and verification, read [Supabase setup](docs/supabase-setup.md).
 
@@ -60,7 +65,7 @@ src/
       login/ signup/            Email/password entry points
       forgot-password/          Reset request
       reset-password/           Verified-session password update
-    auth/callback/              PKCE code exchange or email/recovery token verification
+    auth/callback/              PKCE or email/recovery/invitation token verification
     dashboard/                  Protected workspace, loading/error/not-found states
       projects/new/             Create project
       projects/[id]/edit/       Edit owned project
@@ -93,7 +98,7 @@ The typed schema contracts in src/lib/supabase/types.ts reflect the migration an
 | Area                                                   | Status                                                                      |
 | ------------------------------------------------------ | --------------------------------------------------------------------------- |
 | Responsive landing page and GitHub links               | Implemented; original product presentation preserved                        |
-| Signup, confirmation, login, password reset, logout    | Implemented; requires configured Supabase Auth                              |
+| Signup, confirmation, login, password reset, logout    | Invite-only beta onboarding; requires configured Supabase Auth                              |
 | Private dashboard and project CRUD                     | Implemented; requires applied migration                                     |
 | Profiles                                               | Created automatically on auth user insertion, including before confirmation |
 | PostgreSQL RLS and restricted grants                   | Migration and database authorization suite included                         |
@@ -108,8 +113,8 @@ Email delivery and persistence against a real Supabase project require the integ
 
 ## Roadmap
 
-1. Apply this migration to a development Supabase project and complete two-user authentication/persistence verification.
-2. Add pagination and account/profile management as project volume grows.
+1. Configure protected staging and verify hosted invitation/recovery email, private PDF, evidence retention and two-user acceptance.
+2. Complete an isolated database/Storage restore drill and configure operational alerts; revisit pagination as project volume grows.
 3. Review and verify a production egress architecture before implementing public URL scans; the current queue/browser engine remains fixture-only.
 4. Verify hosted report/review operations, retention cleanup and account-erasure policy before separately authorized notifications, team roles or expanded approval workflows.
 
@@ -142,3 +147,13 @@ Owners can freeze a specific completed QA report, submit a three-day review invi
 Owner routes are under `src/app/dashboard/releases`, the client portal under `src/app/reviews`, invitation instructions under `src/app/review-invitations`, and scoped evidence under `src/app/api/reviews`. Feature modules are in `src/features/releases`. Six RLS-protected tables hold snapshots, invitations, evidence references, comments, decisions and audit events. No new runtime dependencies or credentials are added. Existing owner-only reports/PDFs and fixture-only scanning restrictions remain intact.
 
 The complete disposable CI workflow now covers owner-to-reviewer v1 change requests, v2 approvals, third-account denial, concurrent decisions, replay, revocation, missing evidence and separate historical records. Inspect its result and evidence artifact for the current revision; mocked tests do not establish this path. The review audit trail is not a legally qualified electronic signature and is removed by explicit project deletion.
+
+## Private beta hardening (Task 06)
+
+Hosted status: **blocked by owner configuration**; no staging URL or production launch is claimed. Admission is now fail-closed by default: operator-approved verified accounts with live sessions only, enforced in the app and database/Storage. The signup page provides onboarding instructions. Approved reviewers need separate operator admission. Hosted scans default disabled and the dashboard labels this clearly.
+
+Read the [deployment, environment, migration, worker, backup/rollback and acceptance guide](docs/private-beta-deployment.md), [security findings/risk register](docs/beta-security-review.md), and [actual validation record](docs/beta-validation.md). Apply the new forward migration `20261104000100_private_beta.sql` before deploying this version. Existing migrations/license are preserved. No new dependencies were added.
+
+Use `.env.staging.example` for isolated Preview settings; production configuration is prepared in `.env.production.example` but requires separately approved activation. `npm run validate:env` checks environment binding without printing credentials. `npm run audit:security` enforces the documented expiring dev-only exception and rejects other vulnerabilities. Vercel automatic Git deployments are disabled; manual staging smoke never deploys.
+
+Readiness/liveness: `/api/ready` and `/api/health`. Operational code is in `src/lib/operations`, environment validation in `server/environment.mjs`, operator SQL in the new migration, and worker health checks under `worker/`. All hosted acceptance items and backup/alerting setup remain owner-run steps. Next task: configure protected staging, verify hosted auth/PDF/retention and an isolated restore drill before expanding the beta.

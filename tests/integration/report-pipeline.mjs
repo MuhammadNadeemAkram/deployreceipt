@@ -1,3 +1,4 @@
+import { verifyBeta } from "./beta-workflow.mjs";
 import { verifyReleaseWorkflow } from "./release-workflow.mjs";
 // Disposable local-stack CI integration only. Never points at a hosted Supabase project.
 import assert from "node:assert/strict";
@@ -93,6 +94,10 @@ function session() {
 async function account() {
   const email = "e2e-" + randomUUID() + "@example.test",
     password = randomBytes(24).toString("base64url") + "Aa1!";
+  checked(
+    await admin.from("beta_access").insert({ email }),
+    "admit temporary beta account",
+  );
   const data = checked(
     await admin.auth.admin.createUser({ email, password, email_confirm: true }),
     "create test user",
@@ -103,11 +108,28 @@ async function account() {
     await owner.client.auth.signInWithPassword({ email, password }),
     "real password login",
   );
-  return owner;
+  return { ...owner, email, password };
 }
 try {
   await mkdir("outputs", { recursive: true });
   await mkdir("work", { recursive: true });
+  checked(
+    await admin
+      .from("beta_settings")
+      .update({ environment: "local", enforced: true, scanning_enabled: true })
+      .eq("singleton", true),
+    "configure isolated beta fixture environment",
+  );
+  const blockedSignup = await createClient(api, publishable, {
+    auth: { persistSession: false },
+  }).auth.signUp({
+    email: "not-admitted-" + randomUUID() + "@example.test",
+    password: randomBytes(24).toString("base64url") + "Aa1!",
+  });
+  assert(
+    blockedSignup.error,
+    "Unadmitted signup must be rejected by Auth hook",
+  );
   checked(
     await admin
       .from("scan_settings")
@@ -300,6 +322,8 @@ try {
   const appEnv = {
     ...process.env,
     NODE_ENV: "production",
+    APP_ENV: "local",
+    SCANNING_AVAILABLE: "fixture",
     NEXT_TELEMETRY_DISABLED: "1",
     NEXT_PUBLIC_SUPABASE_URL: api,
     NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: publishable,
@@ -351,6 +375,7 @@ try {
     redirect: "manual",
   });
   assert.equal(denied.status, 404);
+  const pdfStart = performance.now();
   const pdfResponse = await fetch(site + "/api/reports/" + reportId + "/pdf", {
     method: "POST",
     headers: { Cookie: owner.cookie(), Origin: site },
@@ -359,6 +384,7 @@ try {
   assert.equal(pdfResponse.status, 200, "Authenticated PDF must render");
   assert(pdfResponse.headers.get("content-type")?.includes("application/pdf"));
   const pdfBytes = new Uint8Array(await pdfResponse.arrayBuffer());
+  const pdfDuration = Math.round(performance.now() - pdfStart);
   const pdf = await PDFDocument.load(pdfBytes);
   assert(pdf.getPageCount() > 2);
   assert(
@@ -404,6 +430,18 @@ try {
     site,
     admin,
   });
+  await verifyBeta({
+    admin,
+    owner,
+    reviewer: other,
+    reviewIds: releaseProof.reviewIds,
+    reportId,
+    checks,
+    browser,
+    site,
+    api,
+    publishable,
+  });
   checked(
     await owner.client.from("projects").delete().eq("id", project.id),
     "delete disposable project",
@@ -444,6 +482,7 @@ try {
     failed: run.failed_count,
     warnings: run.warning_count,
     screenshot_bytes: screenshotBytes,
+    pdf_duration_ms: pdfDuration,
     pdf_bytes: pdfBytes.length,
     pdf_pages: pdf.getPageCount(),
     real_login: true,

@@ -70,7 +70,7 @@ The renderer runs in a separate Node worker thread using a checked-in, openly li
 - A 12-second renderer wall-clock deadline and 128 MiB worker old-generation heap limit.
 - At most two images, 2 MiB each; authorized Storage downloads have an 8-second abort deadline.
 - PNG signatures, dimensions, channel/depth/interlace and bounded decompression are validated. Nonessential PNG chunks are discarded; arbitrary HTML/SVG or URL resources are rejected.
-- At most 30 PDF pages, 8 MiB output and 512 KiB text-model input.
+- At most 30 PDF pages, 4 MiB output and 512 KiB text-model input.
 - Technical details are abridged after 2,000 characters per finding in PDF, with an explicit notice. The full observation remains in the private web report.
 - Notes/comments are not silently truncated; oversized exports fail with a clear message.
 - Responses are private/no-store, attachments have a UUID-based filename, and PDF output is not persisted server-side.

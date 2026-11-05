@@ -1,5 +1,7 @@
 # Supabase setup and verification
 
+> Task 06 changes onboarding and deployment defaults: start with the [private beta guide](private-beta-deployment.md). Fresh databases enforce operator admission, verified live sessions and disabled scans. Hosted Auth hook/template/rate-limit configuration must be completed separately; public signup is unavailable. This document retains earlier Auth setup details.
+
 ## Hosted development project
 
 1. Create a Supabase development project. Copy its project URL and **publishable** API key from Project Settings → API Keys to .env.local using the names in .env.example. Never use a secret or service-role key.
@@ -41,9 +43,9 @@ For server-side token-hash templates (including confirmation on another browser)
 >
 ```
 
-Use a separate Supabase project per environment when using SiteURL templates. Supabase verifies token hashes before creating a session. The app accepts only email and recovery token types and fixes the destination based on the verified type. It does not accept arbitrary redirect URLs. Do not log full callback URLs or store them in analytics. Configure any external proxy/CDN logs accordingly. Email link scanners may consume one-use links; request a fresh link if this occurs.
+Use a separate Supabase project per environment when using SiteURL templates. Supabase verifies token hashes before creating a session. The app accepts email, recovery and operator invite token types and fixes the destination based on the verified type. It does not accept arbitrary redirect URLs. Do not log full callback URLs or store them in analytics. Configure any external proxy/CDN logs accordingly. Email link scanners may consume one-use links; request a fresh link if this occurs.
 
-The reset page and update action both require a verified, non-anonymous session. Signed-in users can also reach it from My account → Change password. Successful updates request global sign-out and direct users to log in again. As with Supabase generally, existing short-lived access JWTs can remain valid until expiry; configure appropriate session lifetimes. Secure password change in Supabase may require a fresh reset link for old sessions.
+The reset page and update action both require a verified, non-anonymous session. Signed-in users can also reach it from My account → Change password. Successful updates request global sign-out and direct users to log in again. Supabase JWTs can remain cryptographically valid until expiry, but the beta database gate checks the live auth.sessions row and rejects revoked/expired sessions independently. Configure appropriate Auth session lifetimes as well. Secure password change in Supabase may require a fresh reset link for old sessions.
 
 ## Local database and authorization tests
 
@@ -108,3 +110,13 @@ Missing configuration should produce an explicit setup notice; service errors mu
 - [Password authentication](https://supabase.com/docs/guides/auth/passwords)
 - [Supabase API keys](https://supabase.com/docs/guides/getting-started/api-keys)
 - [Database testing in CI](https://supabase.com/docs/guides/deployment/ci/testing)
+
+## Operator beta invitation template
+
+Admit the verified email in beta_access before inviting the user. Configure the hosted Invite user template with this server-side callback (template expressions only):
+
+```html
+<a href="{{ .SiteURL }}/auth/callback?token_hash={{ .TokenHash }}&type=invite">Accept private beta invitation</a>
+```
+
+The callback exchanges the single-use invite token server-side, writes HttpOnly session cookies and opens password setup at a fixed destination. Do not use the default implicit fragment-session invitation link. An invitation does not bypass admission. Hosted delivery must be verified by the owner; disposable CI uses an in-memory admin-generated invite link and does not claim SMTP delivery.

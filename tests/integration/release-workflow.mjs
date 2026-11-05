@@ -96,7 +96,9 @@ export async function verifyReleaseWorkflow({
       .fill(
         "Controlled fixture release. No deployment or certification is implied.",
       );
-    await developer.getByLabel("Primary reviewer email").fill(reviewerEmail);
+    await developer
+      .getByLabel("Approved beta reviewer email")
+      .fill(reviewerEmail);
     await developer
       .getByRole("button", { name: "Create immutable draft" })
       .click();

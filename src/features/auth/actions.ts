@@ -1,4 +1,5 @@
 "use server";
+import { isLocalSignupEnabled } from "./config";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getSiteOrigin, getSupabaseConfig } from "@/lib/supabase/config";
@@ -11,6 +12,11 @@ export async function authenticate(
 ): Promise<FormState> {
   if (!["login", "signup", "forgot-password", "reset-password"].includes(mode))
     return { error: "Unsupported request." };
+  if (mode === "signup" && !isLocalSignupEnabled())
+    return {
+      error:
+        "DeployReceipt is invite-only. Ask the beta operator to approve and onboard your verified email.",
+    };
   const { email, password, fullName, errors } = validateAuth(mode, form);
   if (Object.keys(errors).length)
     return {

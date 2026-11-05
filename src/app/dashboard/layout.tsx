@@ -40,7 +40,12 @@ export default async function DashboardLayout({
       </aside>
       <div className="workspace-body">
         <header className="workspace-header">
-          <span>Personal workspace</span>
+          <span>
+            Private beta ·{" "}
+            {process.env.SCANNING_AVAILABLE === "fixture"
+              ? "Restricted fixture scans only"
+              : "Scanning disabled"}
+          </span>
           <details className="account-menu">
             <summary>My account</summary>
             <div>

@@ -5,5 +5,6 @@ RUN npm ci --ignore-scripts
 COPY worker ./worker
 COPY src/lib/supabase/types.ts ./src/lib/supabase/types.ts
 COPY src/features/scans/types.ts ./src/features/scans/types.ts
+HEALTHCHECK --interval=15s --timeout=3s --start-period=30s --retries=3 CMD ["node","worker/healthcheck.mjs"]
 USER node
 CMD ["node","--import","tsx","worker/main.ts"]
