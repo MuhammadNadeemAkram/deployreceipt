@@ -6,7 +6,7 @@ Run automated website checks, capture test evidence, track issues, and share rel
 
 **Private beta status:** invite-only admission is enforced by default. Hosted deployment is blocked by owner configuration; follow the [private beta deployment guide](docs/private-beta-deployment.md). No production launch is claimed.
 
-**Current milestone:** email/password authentication and personal project management are implemented. A restricted asynchronous fixture-scanning engine is implemented. Public URL scanning remains disabled. Private QA reports, human triage, and bounded PDF export are implemented. Private versioned client release reviews and approval decisions are implemented. Teams, billing, AI and public scanning remain unavailable. No scan is initiated merely by saving a project URL.
+**Current milestone:** email/password authentication and personal project management are implemented. Asynchronous fixture scanning and separately gated, owner-authorized public staging scans are implemented. Public scanning defaults off and production activation remains unavailable. Private QA reports, human triage, and bounded PDF export are implemented. Private versioned client release reviews and approval decisions are implemented. Teams, billing, AI and unrestricted public scanning remain unavailable. No scan is initiated merely by saving a project URL.
 
 ## Setup
 
@@ -26,7 +26,7 @@ NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=YOUR_LOCAL_PUBLISHABLE_KEY
 NEXT_PUBLIC_SITE_URL=http://localhost:3000
 ```
 
-Use the **publishable** key beginning with sb_publishable_. This app deliberately rejects secret keys and legacy JWT keys in that setting. No service-role key or database password is used by the web application. Public-prefixed values are bundled for the browser. Never place privileged credentials in them or commit .env.local.
+Use the **publishable** key beginning with sb*publishable*. This app deliberately rejects secret keys and legacy JWT keys in that setting. No service-role key or database password is used by the web application. Public-prefixed values are bundled for the browser. Never place privileged credentials in them or commit .env.local.
 
 The example above uses a disposable local Supabase stack. Apply all migrations and configure beta admission using the deployment guide; a fresh database denies unadmitted accounts. A local production build accepts only loopback origins. Use the staging example and deployment guide for a hosted Supabase project and HTTPS web deployment.
 
@@ -98,14 +98,14 @@ The typed schema contracts in src/lib/supabase/types.ts reflect the migration an
 | Area                                                   | Status                                                                      |
 | ------------------------------------------------------ | --------------------------------------------------------------------------- |
 | Responsive landing page and GitHub links               | Implemented; original product presentation preserved                        |
-| Signup, confirmation, login, password reset, logout    | Invite-only beta onboarding; requires configured Supabase Auth                              |
+| Signup, confirmation, login, password reset, logout    | Invite-only beta onboarding; requires configured Supabase Auth              |
 | Private dashboard and project CRUD                     | Implemented; requires applied migration                                     |
 | Profiles                                               | Created automatically on auth user insertion, including before confirmation |
 | PostgreSQL RLS and restricted grants                   | Migration and database authorization suite included                         |
 | Automated validation and server-flow tests             | Implemented; service calls are mocked in web tests                          |
 | Restricted fixture scans, real checks and private PNGs | Implemented; see scanning guide                                             |
 | QA reports, finding triage and private PDF export      | Implemented; requires reporting migration and Node runtime                  |
-| Client review and release approval                     | Implemented; requires Task 05 migration and verified reviewer email          |
+| Client review and release approval                     | Implemented; requires Task 05 migration and verified reviewer email         |
 | Public scanning                                        | Not available                                                               |
 | Teams, billing, AI                                     | Not implemented                                                             |
 
@@ -115,7 +115,7 @@ Email delivery and persistence against a real Supabase project require the integ
 
 1. Configure protected staging and verify hosted invitation/recovery email, private PDF, evidence retention and two-user acceptance.
 2. Complete an isolated database/Storage restore drill and configure operational alerts; revisit pagination as project volume grows.
-3. Review and verify a production egress architecture before implementing public URL scans; the current queue/browser engine remains fixture-only.
+3. Deploy and independently verify the isolated public topology on a permanent approved staging host before expanding beta access; production public rollout requires a separate review.
 4. Verify hosted report/review operations, retention cleanup and account-erasure policy before separately authorized notifications, team roles or expanded approval workflows.
 
 ## Contributing
@@ -130,13 +130,13 @@ Build tooling note: dev and build select Next.js’s supported webpack bundler e
 
 ## Asynchronous scanning milestone
 
-See [Scanning engine setup and security boundaries](docs/scanning-engine.md) for queue migrations, DNS authorization, the isolated local fixture topology, worker credentials, limits, retention, tests, and remaining deployment requirements. Public URL scanning is deliberately disabled; there is no public-mode environment bypass. Added dependencies: Playwright 1.64.1, ipaddr.js 2.5.0, and tsx 4.23.15. Worker source is under worker/, scan UI/actions are under src/features/scans, and the forward migration is 20261102000100_scanning_engine.sql.
+See [Scanning engine setup and security boundaries](docs/scanning-engine.md) for queue migrations, DNS authorization, the isolated local fixture topology, worker credentials, limits, retention, tests, and remaining deployment requirements. This guide covers the preserved fixture topology. Public staging uses the separate Task 07 topology and operator gates described below; no client parameter bypasses them. Added dependencies: Playwright 1.64.1, ipaddr.js 2.5.0, and tsx 4.23.15. Worker source is under worker/, scan UI/actions are under src/features/scans, and the forward migration is 20261102000100_scanning_engine.sql.
 
 Dependency audit note (2026-11-02): npm reports 16 moderate development-toolchain advisories inherited through ESLint/minimatch. The suggested automatic fix downgrades to incompatible major versions and was not applied. No added runtime scanner dependency was identified in those advisories. Review the lint toolchain separately; this milestone does not claim a clean full dependency audit.
 
 ## QA reports and evidence
 
-Owners can create reports from terminal scans, review immutable observations, add human severity/status/notes/comments, reference same-scan evidence and export a private PDF. Failed scans are diagnostic reports, and historical configuration is marked unknown when it was never recorded. See [reporting setup, PDF architecture and security](docs/qa-reports.md). Apply the new migration before deploying the updated worker, which records actual execution configuration. Public scanning remains disabled. Full controlled-fixture pipeline verification is tracked by the reports-end-to-end CI job and its proof artifact; report/SQL/layout tests alone do not establish that path.
+Owners can create reports from terminal scans, review immutable observations, add human severity/status/notes/comments, reference same-scan evidence and export a private PDF. Failed scans are diagnostic reports, and historical configuration is marked unknown when it was never recorded. See [reporting setup, PDF architecture and security](docs/qa-reports.md). Apply the new migration before deploying the updated worker, which records actual execution configuration. Public scanning defaults off; approved staging results use the same report model. Full controlled-fixture pipeline verification is tracked by the reports-end-to-end CI job and its proof artifact; report/SQL/layout tests alone do not establish that path.
 
 PDF dependencies: pdf-lib and @pdf-lib/fontkit, with a vendored OFL-licensed Noto Sans font. Export uses a bounded Node worker with local fonts and private PNG bytes, not HTML or external website rendering.
 
@@ -144,7 +144,7 @@ PDF dependencies: pdf-lib and @pdf-lib/fontkit, with a vendored OFL-licensed Not
 
 Owners can freeze a specific completed QA report, submit a three-day review invitation to one verified-email reviewer, collect finding/release feedback, and record an explicit change request or approval. Later report edits cannot change the snapshot or inherit an earlier approval. Notification delivery is manual; no invitation email is claimed. Apply `20261103000100_release_reviews.sql` `20261103000200_review_evidence_scope.sql` `20261103000300_review_reissue_audit.sql` and `20261103000400_reviewer_authenticated_downloads.sql` before deploying. See [client review architecture, state machine, retention and security](docs/client-release-reviews.md).
 
-Owner routes are under `src/app/dashboard/releases`, the client portal under `src/app/reviews`, invitation instructions under `src/app/review-invitations`, and scoped evidence under `src/app/api/reviews`. Feature modules are in `src/features/releases`. Six RLS-protected tables hold snapshots, invitations, evidence references, comments, decisions and audit events. No new runtime dependencies or credentials are added. Existing owner-only reports/PDFs and fixture-only scanning restrictions remain intact.
+Owner routes are under `src/app/dashboard/releases`, the client portal under `src/app/reviews`, invitation instructions under `src/app/review-invitations`, and scoped evidence under `src/app/api/reviews`. Feature modules are in `src/features/releases`. Six RLS-protected tables hold snapshots, invitations, evidence references, comments, decisions and audit events. No new runtime dependencies or credentials are added. Existing owner-only reports/PDFs and fixture isolation remain intact.
 
 The complete disposable CI workflow now covers owner-to-reviewer v1 change requests, v2 approvals, third-account denial, concurrent decisions, replay, revocation, missing evidence and separate historical records. Inspect its result and evidence artifact for the current revision; mocked tests do not establish this path. The review audit trail is not a legally qualified electronic signature and is removed by explicit project deletion.
 
@@ -164,4 +164,4 @@ The feature branch implements an optional, default-off public scanning mode with
 
 Read the [public scanning deployment/verification/disable guide](docs/public-scanning.md) and [threat model](docs/public-scanning-threat-model.md). Apply forward migration `20261105000100_public_scanning.sql` and configure the dedicated Auth token hook before using the public controller. `.env.public-worker.example` contains no credentials. No new application dependencies were added.
 
-The owner-authorized test target is `https://www.noviqen.co.uk/`, mapped to the Vercel `theblogwriter` project. The target-site deployment remains unchanged. The manual public staging workflow requires actual TXT proof and passing security probes before enabling execution in its disposable staging environment; its evidence must be inspected before claiming success. A permanent hosted scanner and production rollout are separate from that test.
+The owner-authorized test target is `https://www.noviqen.co.uk/`, mapped to the Vercel `theblogwriter` project. The target-site deployment remains unchanged. The manual public staging workflow requires actual TXT proof and passing security probes before enabling execution in its disposable staging environment; the first real run passed with six persisted checks, two private screenshots and an owner-authorized PDF/reviewer workflow. See the [actual validation record](docs/public-scanning-validation.md) for revisions, counts and evidence. A permanent hosted scanner and production rollout are separate from that test.

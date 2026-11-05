@@ -2,9 +2,9 @@
 
 Date: 2026-11-05. Task07 branch: `feat/secure-public-scanning`.
 
-**Status: implemented behind staging release gates; validation in progress.** The gateway, separate public topology, dedicated worker identity, consent/RLS workflow and security tests are implemented on the feature branch. This document is not itself evidence of passing isolation or public E2E; consult the PR checks and validation record. Fresh installations and production public scanning remain disabled.
+**Status: implemented behind staging release gates; final revision security, isolation and real owner-authorized staging validation passed.** The gateway, separate public topology, dedicated worker identity, consent/RLS workflow and security tests are implemented on the feature branch. This document is not itself evidence of passing isolation or public E2E; consult the PR checks and validation record. Fresh installations and production public scanning remain disabled.
 
-Task06 PR#6 is merged into main at `39bd935`. Existing fixture-only checks and application protections are the baseline. The operator identified Vercel as the hosting platform but did not identify a separate approved Linux worker host. The identified Vercel web deployment does not establish an approved worker/gateway runtime with the required network controls. Vercel also offers separate Container Runtime, Background Workers and Sandbox products; none is configured or verified for this repository, and their existence does not prove this topology is enforceable. Do not broaden the existing fixture firewall or enable a public scan mode to work around this.
+Task06 PR#6 is merged into main at `39bd935`. Existing fixture-only checks and application protections are the baseline. The operator identified Vercel as the target website hosting platform. The existing GitHub Actions Linux runner was used as a disposable staging runtime after its own isolation probes passed; no permanent worker host was configured. The identified Vercel web deployment does not establish an approved worker/gateway runtime with the required network controls. Vercel also offers separate Container Runtime, Background Workers and Sandbox products; none is configured or verified for this repository, and their existence does not prove this topology is enforceable. Do not broaden the existing fixture firewall or enable a public scan mode to work around this.
 
 The user replaced the previous target with `https://www.noviqen.co.uk/`. On 2026-11-05, read-only inspection of the authenticated [theblogwriter project](https://vercel.com/nadeemakram4436-1522s-projects/theblogwriter) verified:
 
@@ -15,7 +15,7 @@ The user replaced the previous target with `https://www.noviqen.co.uk/`. On 2026
 - The project's Sandbox page shows **Get Started with Vercel Sandbox** onboarding; no configured DeployReceipt scanning runtime was identified there.
 - No deployment, domain, permission, environment-variable, service or billing setting was changed. No secret values were opened.
 
-This verifies the website's deployment mapping, not the browser/gateway isolation or DNS TXT ownership proof required by DeployReceipt. Record `https://www.noviqen.co.uk` as the proposed staging test origin only. No DNS ownership challenge has been verified, no public scan has been queued and no scanner traffic has been sent by this task. Authorization for this exact hostname does not authorize the apex domain, sibling subdomains, cross-origin redirects or third-party infrastructure. Keep the scanner control plane and credentials separate from this live target-site project.
+This verifies the website's deployment mapping, not the browser/gateway isolation or DNS TXT ownership proof required by DeployReceipt. The exact `https://www.noviqen.co.uk` origin subsequently passed real DNS TXT verification and an authorized public scan in disposable staging. See [validation evidence](public-scanning-validation.md); the Vercel inspection alone did not authorize execution. Authorization for this exact hostname does not authorize the apex domain, sibling subdomains, cross-origin redirects or third-party infrastructure. Keep the scanner control plane and credentials separate from this live target-site project.
 
 ## Sources and design requirements
 
@@ -24,7 +24,7 @@ This verifies the website's deployment mapping, not the browser/gateway isolatio
 - [Vercel Container Runtime](https://vercel.com/docs/functions/runtimes/container), [Background Workers](https://vercel.com/docs/background-workers) and [Sandbox](https://vercel.com/docs/sandbox): these are separate deployment options requiring an explicit compatibility, network-policy and account-configuration assessment. Ordinary Next.js deployment is not evidence of an isolated scanning runtime. No platform-wide claim that Vercel cannot execute containers is made.
 - Existing [fixture scanner boundaries](scanning-engine.md), [beta deployment guide](private-beta-deployment.md) and [Task06 risk register](beta-security-review.md) remain authoritative for currently implemented behavior.
 
-These sources inform the proposed design. None establishes that the proposed controls are deployed or have passed tests.
+These sources informed the design before implementation. Test results and deployment scope are recorded separately; source guidance alone does not prove isolation.
 
 ## Assets, actors and trust
 
@@ -43,7 +43,7 @@ These sources inform the proposed design. None establishes that the proposed con
 
 Ownership proof authorizes a bounded scan; it does not make the scanned content safe. Operator approval, account admission, DNS proof and explicit per-scan consent serve different purposes and cannot substitute for each other.
 
-## Proposed enforceable architecture
+## Enforced architecture
 
 ```text
 Next.js -> owner-checked PostgreSQL RPC -> pgmq lease -> worker controller
@@ -95,7 +95,7 @@ For the initial MVP, block all third-party resources and cross-origin redirects.
 
 TLS validation must stay enabled. A hostile DNS answer resolving to a public server still does not bypass TLS identity verification. A valid certificate and public IP do not authorize a different hostname or prove that GET requests are harmless.
 
-## Ownership and audit contract for future implementation
+## Ownership and audit contract
 
 - Reuse secure unique DNS TXT challenges, but define canonical hostname normalization identically in application, SQL and gateway. The current SQL hostname extractor is not by itself a complete public URL authorization policy.
 - Verify `_deployreceipt.<exact-hostname>` and bind proof to the stored hostname, project, challenge, checked time and expiry. Recheck expiry and hostname at submission and job start; stale queued jobs must not inherit fresh authority accidentally.
@@ -104,18 +104,18 @@ TLS validation must stay enabled. A hostile DNS answer resolving to a public ser
 - Record submission, verification, denial and worker failure using sanitized audit events. Apply forward migrations/RLS/restricted grants; never edit merged migrations.
 - Keep fixture and public jobs distinguishable throughout configuration snapshots, report scope and client approvals. A fixture proof cannot satisfy public-hostname verification.
 
-## Host and credential prerequisites: currently unverified
+## Permanent hosted deployment checklist
 
-The following are the hosted activation checklist; passing CI does not silently activate a permanent deployment:
+The disposable Linux staging run verifies the implemented identity, gateway and exact-host DNS workflow. These items must still be configured and reverified for a permanent host; passing CI does not silently activate that deployment:
 
 - [ ] Existing approved Linux worker host identified, with a configured authorized management connection. Vercel identification alone does not satisfy this.
 - [ ] Host supports custom seccomp, Chromium user namespaces/sandbox, capability dropping, cgroup limits and independently verified IPv4/IPv6/DNS egress rules.
-- [ ] Dedicated least-privilege controller identity/RPC and Storage grants; Task06's broad privileged worker secret is not approved for hostile public scans.
+- [ ] Provision the implemented dedicated controller identity/Auth hook and restricted RPC/Storage grants in hosted staging; never copy Task06's broad privileged worker secret into public mode.
 - [ ] Gateway implementation, non-bypassable control/data networks and secret separation reviewed on the exact runtime; no public proxy or browser control ports.
 - [ ] Exact test origin remains explicitly authorized and DNS ownership verified through the application.
 - [ ] Separate staging services, private artifacts, cleanup, backups and incident kill switch configured.
 
-No connection details for such a worker host are currently configured in this workspace. Neither checkout has a linked `.vercel/project.json`; no Vercel deployment token is configured in this task environment. The user supplied the dashboard URL and completed browser sign-in, allowing read-only verification of the target-site project. That project has no configured daemon and does not identify an approved scanning runtime. Browser access to the target website project does not supply a worker deployment identity or demonstrate enforceable egress policy. Docker/Supabase CLIs are unavailable locally; prior Linux CI verifies the **existing fixture topology only**.
+No connection details for such a worker host are currently configured in this workspace. Neither checkout has a linked `.vercel/project.json`; no Vercel deployment token is configured in this task environment. The user supplied the dashboard URL and completed browser sign-in, allowing read-only verification of the target-site project. That project has no configured daemon and does not identify an approved scanning runtime. Browser access to the target website project does not supply a worker deployment identity or demonstrate enforceable egress policy. Docker/Supabase CLIs are unavailable locally. Linux CI now verifies both the preserved fixture topology and the separate public topology, including real TLS and kernel denial; the owner-authorized public E2E uses a disposable runner. Consult the validation record for exact revisions and results.
 
 ## Adversarial validation plan
 
@@ -130,17 +130,17 @@ Required groups before activation:
 5. Database: current verified exact hostname, expiry/change invalidation, quota races across accounts/domains, result immutability, RLS/worker privilege misuse and stale leases.
 6. End-to-end: real owner/reviewer accounts, actual TXT proof, public gateway fetch, checks, screenshots, immutable results, dashboard/report/PDF/approval, cross-user denial, retention and recovery.
 
-Existing unit/fixture/container tests cannot substitute for these new tests. **Public staging E2E: pending execution.** The manual workflow creates a disposable Linux staging database and public topology only after isolated security tests pass and the exact owner-issued DNS challenge resolves. It stores no production credentials and tears down on completion. Do not run a public test merely because a target URL was supplied.
+Existing unit/fixture/container tests cannot substitute for these new tests. **Public staging E2E: passed on the final behavioral revision; see the revision-specific validation record for counts and evidence.** The manual workflow creates a disposable Linux staging database and public topology only after isolated security tests pass and the exact owner-issued DNS challenge resolves. It stores no production credentials and tears down on completion. Do not run a public test merely because a target URL was supplied.
 
 ## Rollout and emergency response
 
-Keep `scan_settings.mode` restricted to its existing disabled/local values and retain fixture-only worker/browser rules. Do not add a client-selectable public mode or repurpose SCANNING_AVAILABLE=fixture as public permission. A future forward migration must default public execution off and require operator staging approval, expiring infrastructure attestations and a separate production gate.
+Keep `scan_settings.mode` disabled by default and retain fixture-only worker/browser rules separately. Public mode is available only through the Task 07 operator-approved staging gates. Do not add a client-selectable public mode or repurpose SCANNING_AVAILABLE=fixture as public permission. The Task 07 forward migration defaults public execution off and requires operator staging approval, expiring infrastructure attestations and a separate production gate.
 
 On a future incident: deny new public submissions and leases in the database, stop/quarantine public worker and gateway containers, revoke the dedicated worker identity, preserve sanitized event IDs, inspect private artifacts under owner authorization and verify network containment. Never loosen egress to recover availability. Leave fixture topology isolated. Re-enable only after root cause, cleanup, exact-host regression and owner review.
 
 Production rollout recommendation: **do not enable production public scanning**. The supported activation target is explicitly approved staging with a matching tested image revision, recent independent infrastructure evidence, a dedicated worker identity and live gateway/browser readiness. No current high-impact activation blocker is waived by this document.
 
-## Residual risks after a future implementation
+## Residual risks
 
 Kernel/Chromium vulnerabilities, public-site GET side effects, resource exhaustion, shared hosting/CDN ambiguity, DNS or certificate-authority compromise and operational misconfiguration cannot be eliminated by URL checks. Screenshot content may contain sensitive or offensive material even without an authenticated session. A bounded scan is neither a vulnerability assessment nor security certification. Require informed scope consent, conservative defaults, patching, private retention and an incident owner.
 
