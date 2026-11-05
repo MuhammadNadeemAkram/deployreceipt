@@ -293,7 +293,12 @@ export async function scanWebsite(
           timeout: 5000,
           animations: "disabled",
         });
-        if (buffer.length > settings.screenshot_bytes)
+        if (
+          buffer.length >
+          (publicMode
+            ? Math.min(2097152, settings.screenshot_bytes)
+            : settings.screenshot_bytes)
+        )
           finding(
             type,
             "warning",
@@ -387,7 +392,11 @@ export async function scanWebsite(
     );
     finding(
       "javascript",
-      publicMode && !loaded ? "warning" : jsTotal ? "warning" : "pass",
+      publicMode && (!loaded || policyCount > 0)
+        ? "warning"
+        : jsTotal
+          ? "warning"
+          : "pass",
       publicMode && !loaded
         ? "JavaScript observation was not executed because target navigation was unavailable."
         : jsTotal

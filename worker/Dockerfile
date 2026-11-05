@@ -1,4 +1,6 @@
 FROM node:24-bookworm-slim
+ARG SCAN_CODE_SHA
+ENV SCAN_CODE_SHA=$SCAN_CODE_SHA
 WORKDIR /app
 COPY package*.json ./
 RUN npm ci --ignore-scripts

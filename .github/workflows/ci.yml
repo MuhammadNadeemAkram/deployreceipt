@@ -4,12 +4,24 @@ on:
     branches: [main]
   pull_request:
   workflow_dispatch:
+    inputs:
+      authorized_hostname:
+        description: "Optional owner-authorized public staging test: www.noviqen.co.uk"
+        required: false
+        type: string
 permissions:
   contents: read
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 jobs:
+  authorized-public-staging:
+    if: github.event_name == 'workflow_dispatch' && inputs.authorized_hostname == 'www.noviqen.co.uk'
+    uses: ./.github/workflows/public-scanning-staging.yml
+    with:
+      authorized_hostname: ${{ inputs.authorized_hostname }}
+    secrets:
+      PUBLIC_SCAN_E2E_CHALLENGE: ${{ secrets.PUBLIC_SCAN_E2E_CHALLENGE }}
   validate:
     runs-on: ubuntu-latest
     timeout-minutes: 15

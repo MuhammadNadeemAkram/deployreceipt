@@ -26,7 +26,7 @@ select throws_ok($$select public.request_public_scan((select id from public.proj
 select throws_ok($$select public.request_public_scan((select id from public.projects where name='public test'),false)$$,'P0001','explicit_consent_required','consent required');
 select throws_ok($$select * from public.public_scan_settings$$,'42501',null,'member cannot read/change operator configuration');
 select throws_ok($$select public.scan_worker_access_token('{}')$$,'42501',null,'token hook not a role escalation RPC');
-select throws_ok($$select public.public_worker_attest(true,'public-gateway-v1')$$,'42501',null,'member cannot forge infrastructure heartbeat');
+select throws_ok($$select public.public_worker_attest(true,'public-gateway-v1',repeat('a',40))$$,'42501',null,'member cannot forge infrastructure heartbeat');
 select throws_ok($$select public.lease_scan_job()$$,'42501',null,'member cannot lease jobs');
 reset role;
 select set_config('request.jwt.claims','{}',true);
@@ -36,7 +36,9 @@ update public.public_scan_settings set operator_enabled=true,staging_approved=tr
 insert into public.domain_verifications(project_id,domain,status,method,verified_at,expires_at)select id,'www.noviqen.co.uk','verified','dns',now(),now()+interval '1 hour' from public.projects where name='public test';
 set local role deployreceipt_scan_worker;
 select set_config('request.jwt.claims','{"sub":"75222222-2222-4222-8222-222222222222","role":"deployreceipt_scan_worker","session_id":"76222222-2222-4222-8222-222222222222"}',true);
-select ok(public.public_worker_attest(true,'public-gateway-v1'),'dedicated active worker can attest bounded readiness');
+select ok(public.public_worker_attest(true,'public-gateway-v1',repeat('a',40)),'dedicated active worker can attest bounded readiness');
+select ok(not public.public_worker_attest(true,'public-gateway-v1',repeat('b',40)),'untested or mismatched image revision cannot satisfy readiness');
+select ok(public.public_worker_attest(true,'public-gateway-v1',repeat('a',40)),'matching tested image revision recovers readiness');
 reset role;
 set local role authenticated;
 select set_config('request.jwt.claims','{"sub":"75111111-1111-4111-8111-111111111111","role":"authenticated","session_id":"76111111-1111-4111-8111-111111111111"}',true);
@@ -68,6 +70,6 @@ update public.public_scan_settings set production_enabled=false;
 update public.scan_worker_identities set active=false;
 set local role deployreceipt_scan_worker;
 select set_config('request.jwt.claims','{"sub":"75222222-2222-4222-8222-222222222222","role":"deployreceipt_scan_worker","session_id":"76222222-2222-4222-8222-222222222222"}',true);
-select throws_ok($$select public.public_worker_attest(true,'public-gateway-v1')$$,'42501','not_authorized','revoked worker JWT immediately loses privileges');
+select throws_ok($$select public.public_worker_attest(true,'public-gateway-v1',repeat('a',40))$$,'42501','not_authorized','revoked worker JWT immediately loses privileges');
 reset role;
 select * from finish();rollback;

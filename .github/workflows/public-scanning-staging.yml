@@ -1,0 +1,70 @@
+name: Authorized public scanning staging
+on:
+  workflow_call:
+    inputs:
+      authorized_hostname:
+        required: true
+        type: string
+    secrets:
+      PUBLIC_SCAN_E2E_CHALLENGE:
+        required: true
+  workflow_dispatch:
+    inputs:
+      authorized_hostname:
+        description: "Owner-authorized bounded unauthenticated QA target; must be www.noviqen.co.uk"
+        required: true
+        type: string
+permissions:
+  contents: read
+concurrency:
+  group: public-scanning-staging
+  cancel-in-progress: false
+jobs:
+  public-staging:
+    if: (github.ref == 'refs/heads/feat/secure-public-scanning' || github.ref == 'refs/heads/main') && inputs.authorized_hostname == 'www.noviqen.co.uk'
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-node@v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm install --global npm@12.2.1
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run audit:security
+      - run: npx playwright install --with-deps chromium
+      - name: Install pinned Supabase CLI
+        run: |
+          npm install --prefix "$RUNNER_TEMP/supabase-cli" --no-package-lock --no-audit --no-fund supabase@2.122.0
+          echo "$RUNNER_TEMP/supabase-cli/node_modules/.bin" >> "$GITHUB_PATH"
+      - name: Prepare isolated TLS fixtures
+        run: |
+          mkdir -p work/gateway-certs
+          openssl req -x509 -newkey rsa:2048 -nodes -days 1 -keyout work/gateway-certs/server.key -out work/gateway-certs/server.crt -subj '/CN=owned.qa-fixture.net' -addext 'subjectAltName=DNS:owned.qa-fixture.net' >/dev/null 2>&1
+          chmod 644 work/gateway-certs/server.key
+      - run: docker compose -f compose.scan-public-test.yml run --build --rm isolation-probe
+      - run: docker compose -f compose.scan-public-test.yml run --build --rm gateway-transport
+      - run: supabase start -x studio,imgproxy,edge-runtime,logflare,vector,supavisor,realtime > /tmp/deployreceipt-public-supabase.log 2>&1
+      - run: supabase test db
+      - name: Actual DNS-authorized public pipeline
+        run: node tests/integration/public-pipeline.mjs
+        env:
+          NODE_ENV: test
+          PUBLIC_SECURITY_PROBES_PASSED: "1"
+          PUBLIC_SCAN_AUTHORIZATION: ${{ inputs.authorized_hostname }}
+          PUBLIC_SCAN_E2E_CHALLENGE: ${{ secrets.PUBLIC_SCAN_E2E_CHALLENGE }}
+      - uses: actions/upload-artifact@v7.0.2
+        if: always()
+        with:
+          name: authorized-public-staging-evidence
+          path: outputs/public-e2e-*
+          retention-days: 7
+          if-no-files-found: warn
+      - if: always()
+        run: |
+          docker compose -f compose.scan-public-test.yml down
+          supabase stop --no-backup

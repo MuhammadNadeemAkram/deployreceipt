@@ -1,4 +1,6 @@
 FROM node:24-bookworm-slim
+ARG SCAN_CODE_SHA
+ENV SCAN_CODE_SHA=$SCAN_CODE_SHA
 WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends iptables util-linux && rm -rf /var/lib/apt/lists/*
 COPY package*.json ./

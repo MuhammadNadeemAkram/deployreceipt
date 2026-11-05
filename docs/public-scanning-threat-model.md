@@ -2,7 +2,7 @@
 
 Date: 2026-11-05. Task07 branch: `feat/secure-public-scanning`.
 
-**Status: design only; implementation and public scanning remain BLOCKED.** This document is not a functioning gateway, a deployment configuration, an independent security review or evidence of public scanning safety.
+**Status: implemented behind staging release gates; validation in progress.** The gateway, separate public topology, dedicated worker identity, consent/RLS workflow and security tests are implemented on the feature branch. This document is not itself evidence of passing isolation or public E2E; consult the PR checks and validation record. Fresh installations and production public scanning remain disabled.
 
 Task06 PR#6 is merged into main at `39bd935`. Existing fixture-only checks and application protections are the baseline. The operator identified Vercel as the hosting platform but did not identify a separate approved Linux worker host. The identified Vercel web deployment does not establish an approved worker/gateway runtime with the required network controls. Vercel also offers separate Container Runtime, Background Workers and Sandbox products; none is configured or verified for this repository, and their existence does not prove this topology is enforceable. Do not broaden the existing fixture firewall or enable a public scan mode to work around this.
 
@@ -57,7 +57,7 @@ Next.js -> owner-checked PostgreSQL RPC -> pgmq lease -> worker controller
 
 Select a dedicated Linux VM/runtime supporting namespaces, host-enforced firewall rules, custom seccomp, cgroup resource limits and unprivileged sandboxed Chromium. Keep the existing fixture topology separate. A Docker bridge marked internal, DNS checks or Playwright routing alone is insufficient.
 
-A suitable initial implementation is a **bounded HTTP fetch gateway with controller-mediated response delivery**:
+The implementation uses a **bounded HTTP fetch gateway with controller-mediated response delivery**:
 
 1. Browser namespace denies every new outbound IPv4/IPv6 connection, including loopback, DNS, UDP, metadata, control services and ordinary internet traffic. Only established responses on the controller's browser-management connection are permitted. No host networking or published browser-management port.
 2. Browser requests are intercepted and submitted by the trusted controller to a separate authenticated gateway control interface. Chromium receives response bytes, never a gateway control credential or database token. The browser cannot call that interface directly. Playwright interception selects requests but is not the network boundary: bypass attempts hit the namespace firewall.
@@ -67,7 +67,7 @@ A suitable initial implementation is a **bounded HTTP fetch gateway with control
 6. Bound response headers, compressed and expanded bytes, job totals, socket counts, requests and elapsed time. Reject unsupported encodings rather than accidentally forwarding a decompression bomb. Never forward target cookies, authorization, proxy credentials or user-supplied headers. Strip Set-Cookie from delivered responses and start each context without website credentials.
 7. Recycle browser processes/namespaces between hostile jobs. Fresh contexts are required within each job but are not sufficient protection against browser-process compromise across jobs. Remove temporary files and volumes; restart/quarantine on cleanup failure.
 
-This architecture avoids opaque HTTPS CONNECT tunnels, which would prevent the gateway from enforcing methods, response budgets and origin policy inside TLS. It requires explicit implementation and compatibility tests for response delivery, redirects, MIME handling, compression and certificate failures. Do not enable an unrestricted CONNECT fallback when a site fails to render.
+This architecture avoids opaque HTTPS CONNECT tunnels, which would prevent the gateway from enforcing methods, response budgets and origin policy inside TLS. Compatibility, TLS, redirect and resource tests run against controlled fixtures; real public compatibility must be established by the owner-authorized staging workflow. Do not enable an unrestricted CONNECT fallback when a site fails to render.
 
 For the initial MVP, block all third-party resources and cross-origin redirects. A resource being public does not establish the owner's authority to scan it. Record resulting coverage limitations. Future third-party exceptions require a separate review and must pass the same connection-time policy.
 
@@ -106,7 +106,7 @@ TLS validation must stay enabled. A hostile DNS answer resolving to a public ser
 
 ## Host and credential prerequisites: currently unverified
 
-The following are **activation blockers**, not work completed by this documentation:
+The following are the hosted activation checklist; passing CI does not silently activate a permanent deployment:
 
 - [ ] Existing approved Linux worker host identified, with a configured authorized management connection. Vercel identification alone does not satisfy this.
 - [ ] Host supports custom seccomp, Chromium user namespaces/sandbox, capability dropping, cgroup limits and independently verified IPv4/IPv6/DNS egress rules.
@@ -130,7 +130,7 @@ Required groups before activation:
 5. Database: current verified exact hostname, expiry/change invalidation, quota races across accounts/domains, result immutability, RLS/worker privilege misuse and stale leases.
 6. End-to-end: real owner/reviewer accounts, actual TXT proof, public gateway fetch, checks, screenshots, immutable results, dashboard/report/PDF/approval, cross-user denial, retention and recovery.
 
-Existing unit/fixture/container tests cannot substitute for these new tests. **Public staging E2E: BLOCKED. No public gateway, worker host, DNS verification or approved infrastructure evidence is available.** Do not run a public test merely because a target URL was supplied.
+Existing unit/fixture/container tests cannot substitute for these new tests. **Public staging E2E: pending execution.** The manual workflow creates a disposable Linux staging database and public topology only after isolated security tests pass and the exact owner-issued DNS challenge resolves. It stores no production credentials and tears down on completion. Do not run a public test merely because a target URL was supplied.
 
 ## Rollout and emergency response
 
@@ -138,8 +138,16 @@ Keep `scan_settings.mode` restricted to its existing disabled/local values and r
 
 On a future incident: deny new public submissions and leases in the database, stop/quarantine public worker and gateway containers, revoke the dedicated worker identity, preserve sanitized event IDs, inspect private artifacts under owner authorization and verify network containment. Never loosen egress to recover availability. Leave fixture topology isolated. Re-enable only after root cause, cleanup, exact-host regression and owner review.
 
-Production rollout recommendation: **do not enable public scanning**. Proceed to implementation only after the critical host/credential prerequisites are resolved, then independently verify isolation and complete controlled public E2E. No current high-impact activation blocker is waived by this document.
+Production rollout recommendation: **do not enable production public scanning**. The supported activation target is explicitly approved staging with a matching tested image revision, recent independent infrastructure evidence, a dedicated worker identity and live gateway/browser readiness. No current high-impact activation blocker is waived by this document.
 
 ## Residual risks after a future implementation
 
 Kernel/Chromium vulnerabilities, public-site GET side effects, resource exhaustion, shared hosting/CDN ambiguity, DNS or certificate-authority compromise and operational misconfiguration cannot be eliminated by URL checks. Screenshot content may contain sensitive or offensive material even without an authenticated session. A bounded scan is neither a vulnerability assessment nor security certification. Require informed scope consent, conservative defaults, patching, private retention and an incident owner.
+
+## Implementation references
+
+- `worker/gateway/`: shared URL/DNS policy, numeric pinned HTTP/TLS connections, request/body/time/per-IP/global budgets, authenticated per-job control API and kernel firewall.
+- `compose.scan-public.yml`: separate browser/controller/gateway networks; browser receives no application or gateway credentials. All images share the tested commit; readiness rejects mismatches.
+- `20261105000100_public_scanning.sql`: default-off staging gates, custom worker role/access-token hook, exact-host ownership/consent, worker-bound leases/artifacts, hostname/global quotas, RLS and sanitized audit.
+- `compose.scan-public-test.yml`: no internet route; controlled TLS endpoint, raw kernel bypass probes and TLS verification tests.
+- `public-scanning-staging.yml`: explicit manual owner-authorized real-target validation, with isolated probes first and DNS proof required before any scan. This is not permanent infrastructure or a production rollout.

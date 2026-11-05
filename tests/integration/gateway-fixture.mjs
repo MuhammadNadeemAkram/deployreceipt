@@ -27,7 +27,11 @@ const handle = (req, res) => {
     res.writeHead(200, { "content-length": "2097153" });
     return res.end();
   }
-  if (req.url === "/stream") return res.end(Buffer.alloc(2097153));
+  if (req.url === "/stream") {
+    res.writeHead(200, { "transfer-encoding": "chunked" });
+    res.write(Buffer.alloc(1048576));
+    return res.end(Buffer.alloc(1048577));
+  }
   if (req.url === "/encoding") {
     res.writeHead(200, { "content-encoding": "gzip" });
     return res.end("untrusted compressed data");

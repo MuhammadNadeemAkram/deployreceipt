@@ -2,6 +2,9 @@ import http from "node:http";
 import { randomBytes, timingSafeEqual } from "node:crypto";
 import { FetchScope } from "./fetch";
 import { PolicyError } from "./policy";
+const codeSha = process.env.SCAN_CODE_SHA;
+if (!codeSha || !/^[a-f0-9]{40}$/.test(codeSha))
+  throw Error("verified_code_revision_required");
 const key = process.env.GATEWAY_CONTROL_KEY;
 if (!key || !/^([a-f0-9]{64})$/.test(key))
   throw Error("gateway_control_key_required");
@@ -28,7 +31,7 @@ const server = http.createServer(
     };
     try {
       if (req.url === "/health" && req.method === "GET")
-        return reply(200, { ready: true });
+        return reply(200, { ready: true, code_sha: codeSha });
       if (
         req.method !== "POST" ||
         !same(req.headers.authorization ?? "", "Bearer " + key)
@@ -73,5 +76,7 @@ const server = http.createServer(
     }
   },
 );
+server.on("connect", (_request, socket) => socket.destroy());
+server.on("upgrade", (_request, socket) => socket.destroy());
 server.maxConnections = 8;
 server.listen(9080, "0.0.0.0");

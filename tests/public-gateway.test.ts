@@ -1,3 +1,4 @@
+import { EgressBudget } from "../worker/gateway/budget";
 import { describe, it, expect, vi } from "vitest";
 import { FetchScope, type WireRequest } from "../worker/gateway/fetch";
 import {
@@ -211,4 +212,18 @@ describe("bounded pinned fetch scope", () => {
     await expect(a).rejects.toThrow();
     await expect(b).rejects.toThrow();
   });
+});
+
+it("limits aggregate per-IP and global activity across accounts/jobs", () => {
+  let now = 60000;
+  const budget = new EgressBudget(() => now);
+  for (let i = 0; i < 60; i++) budget.reserve("93.184.215.14");
+  expect(() => budget.reserve("93.184.215.14")).toThrow(
+    "destination_rate_limited",
+  );
+  for (let i = 0; i < 59; i++) budget.reserve("93.184.215.15");
+  expect(() => budget.reserve("93.184.215.16")).toThrow("gateway_rate_limited");
+  now += 60000;
+  const charge = budget.reserve("93.184.215.14");
+  expect(() => charge(33554433)).toThrow("destination_byte_rate_limited");
 });

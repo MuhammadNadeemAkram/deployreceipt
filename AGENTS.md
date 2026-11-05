@@ -26,8 +26,8 @@
 
 ## Scanning engine conventions
 
-- The scanning engine remains fixture-only. Reports and client reviews follow their dedicated conventions below. Public URL scanning, billing, AI and user-defined scripts remain out of scope.
-- Read docs/scanning-engine.md before changing worker/network code. Public scanning stays disabled; do not add an environment bypass or rely only on Playwright routing.
+- Fixture mode remains isolated; Task07 also authorizes the separately gated public staging mode. Reports and client reviews follow their dedicated conventions below. Unrestricted/unverified scanning, production public activation, billing, AI and user-defined scripts remain out of scope.
+- Read docs/scanning-engine.md before changing worker/network code. Public mode defaults off and requires current exact-host DNS, per-scan consent, tested image revision, independent host evidence, live gateway/browser readiness and operator staging approval. Do not bypass these gates or rely only on Playwright routing.
 - Keep the privileged Node orchestrator separate from the browser container. Browser containers receive no application credentials, no host networking, and no privileged mode. Keep the firewall, sandbox, capability drop, and resource bounds intact.
 - Use pgmq leases and worker-only RPCs. Persist artifacts/results before acknowledgement. Reject stale lease writes; test crash recovery, duplicate jobs, quotas, and denied permissions in SQL.
 - Add forward migrations only. Keep RLS enabled on scan tables and private screenshot policies tied to project ownership. Never accept client-supplied scan targets, outcomes, limits, or verification success.
@@ -58,3 +58,12 @@
 - Maintain nonce CSP, HttpOnly/Secure/Lax server auth cookies, sanitized operational event allowlists and bounded health checks. Never log raw dependency URLs/errors or customer content.
 - Run audit:security with other required checks; the documented dev-only exception expires2026-12-04. Do not broaden it to runtime/new advisories.
 - Git auto deployment stays disabled. Production activation and live database operations need a separate authorized release. Update deployment/risk/validation docs with actual executed evidence, including unavailable hosted checks.
+
+## Public scanning conventions
+
+- Read docs/public-scanning.md and the threat model before public worker/network changes. Keep fixture tests/topology separate.
+- Chromium has no direct outbound path or credentials. All public responses use the pinned policy gateway with TLS validation, same-origin GET/HEAD, body/request/time/IP budgets and denied tunnels.
+- Use only the dedicated live-session worker role, never a service secret in public mode. Preserve worker-bound leases, upload scope and operation-limited expired cleanup.
+- Never count policy blocks or unexecuted checks as website defects or successful tests. Preserve immutable raw observations and historical approvals.
+- Adversarial tests use no-internet controlled networks. Real public E2E requires explicit owner authorization and actual DNS proof; publish sanitized evidence and keep hosted/ephemeral validation distinct.
+- Public production remains off; do not change a target site's hosting configuration to run the scanner.

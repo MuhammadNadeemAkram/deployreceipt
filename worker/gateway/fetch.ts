@@ -1,3 +1,4 @@
+import { sharedEgressBudget } from "./budget";
 import http from "node:http";
 import https from "node:https";
 import { isIP } from "node:net";
@@ -181,8 +182,10 @@ export class FetchScope {
         controller.signal.aborted
       )
         throw new PolicyError("scope_expired");
+      const chargePeer = sharedEgressBudget.reserve(address.address);
       let charged = 0;
       const consume = (bytes: number) => {
+        chargePeer(bytes);
         charged += bytes;
         this.bytes += bytes;
         if (this.bytes > 16777216) throw new PolicyError("total_byte_limit");

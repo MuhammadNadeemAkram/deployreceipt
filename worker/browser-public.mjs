@@ -1,6 +1,9 @@
 import http from "node:http";
 import { writeFile } from "node:fs/promises";
 import { chromium } from "playwright";
+const codeSha = process.env.SCAN_CODE_SHA;
+if (!codeSha || !/^[a-f0-9]{40}$/.test(codeSha))
+  throw Error("verified_code_revision_required");
 const server = await chromium.launchServer({
   host: "0.0.0.0",
   port: 9000,
@@ -29,6 +32,7 @@ http
       JSON.stringify({
         ready: server.process().exitCode === null,
         policy: "public-gateway-v1",
+        code_sha: codeSha,
       }),
     );
   })

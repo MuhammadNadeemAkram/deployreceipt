@@ -6,7 +6,7 @@ create table public.public_scan_settings(singleton boolean primary key default t
 insert into public.public_scan_settings default values;
 create table public.scan_worker_identities(user_id uuid primary key references auth.users(id) on delete cascade,active boolean not null default false);
 create table public.public_scan_audit(id bigint generated always as identity primary key,user_id uuid references auth.users(id) on delete set null,project_id uuid references public.projects(id) on delete set null,event text not null check(event in ('submitted','verification_requested','verification_finished','leased','worker_failure','finished','policy_blocked')),created_at timestamptz not null default now());
-create table public.public_worker_readiness(user_id uuid primary key references public.scan_worker_identities(user_id) on delete cascade,ready boolean not null,checked_at timestamptz not null,policy_version text not null check(policy_version='public-gateway-v1'));
+create table public.public_worker_readiness(user_id uuid primary key references public.scan_worker_identities(user_id) on delete cascade,ready boolean not null,checked_at timestamptz not null,policy_version text not null check(policy_version='public-gateway-v1'),security_suite_sha text not null check(security_suite_sha ~ '^[a-f0-9]{40}$'));
 alter table public.public_scan_settings enable row level security;
 alter table public.scan_worker_identities enable row level security;
 alter table public.public_scan_audit enable row level security;
@@ -37,13 +37,13 @@ revoke all on function public.scan_worker_access_token(jsonb) from public,anon,a
 grant execute on function public.scan_worker_access_token(jsonb) to supabase_auth_admin;
 create function public.public_scan_ready() returns boolean language sql stable security definer set search_path='' as $$
  select exists(select 1 from public.beta_settings b join public.public_scan_settings p using(singleton) where b.environment='staging' and b.enforced and b.scanning_enabled and p.operator_enabled and p.staging_approved and not p.production_enabled and p.infrastructure_checked_at>now()-interval '24 hours' and p.security_suite_sha is not null)
- and exists(select 1 from public.public_worker_readiness r join public.scan_worker_identities w on w.user_id=r.user_id and w.active where r.ready and r.checked_at>now()-interval '45 seconds' and r.policy_version='public-gateway-v1');
+ and exists(select 1 from public.public_worker_readiness r join public.scan_worker_identities w on w.user_id=r.user_id and w.active join public.public_scan_settings p on p.security_suite_sha=r.security_suite_sha where r.ready and r.checked_at>now()-interval '45 seconds' and r.policy_version='public-gateway-v1');
 $$;
 create function public.public_scanning_status() returns boolean language sql stable security definer set search_path='' as $$ select public.beta_has_access() and (select mode='public' from public.scan_settings) and public.public_scan_ready(); $$;
-create function public.public_worker_attest(p_ready boolean,p_policy_version text) returns boolean language plpgsql security definer set search_path='' as $$
+create function public.public_worker_attest(p_ready boolean,p_policy_version text,p_security_suite_sha text) returns boolean language plpgsql security definer set search_path='' as $$
 begin
  if not public.public_scan_worker() or p_policy_version<>'public-gateway-v1' then raise exception 'not_authorized' using errcode='42501';end if;
- insert into public.public_worker_readiness values(auth.uid(),p_ready,clock_timestamp(),p_policy_version) on conflict(user_id)do update set ready=excluded.ready,checked_at=excluded.checked_at,policy_version=excluded.policy_version;
+ insert into public.public_worker_readiness values(auth.uid(),p_ready,clock_timestamp(),p_policy_version,p_security_suite_sha) on conflict(user_id)do update set ready=excluded.ready,checked_at=excluded.checked_at,policy_version=excluded.policy_version,security_suite_sha=excluded.security_suite_sha;
  return public.public_scan_ready();
 end;$$;
 create function public.public_target_origin(value text) returns text language plpgsql immutable set search_path='' as $$
@@ -190,13 +190,15 @@ end;$$;
 create function public.worker_artifact_allowed(p_name text,p_delete boolean)returns boolean language sql stable security definer set search_path='' as $$
  select public.public_scan_worker() and case when p_delete then exists(select 1 from storage.objects where bucket_id='scan-artifacts' and name=p_name and created_at<now()-make_interval(days=>(select retention_days from public.scan_settings))) else exists(select 1 from public.scan_runs where public_scope and worker_identity=auth.uid() and status='running' and lease_until>now() and p_name=id::text||'/'||attempts::text||'/desktop.png' or public_scope and worker_identity=auth.uid() and status='running' and lease_until>now() and p_name=id::text||'/'||attempts::text||'/mobile.png')end;
 $$;
-grant insert,delete on storage.objects to deployreceipt_scan_worker;
+grant insert,select,delete on storage.objects to deployreceipt_scan_worker;
+-- SELECT is needed to find expired objects for DELETE, but never to download, sign or list evidence.
+create policy public_worker_cleanup_metadata on storage.objects for select to deployreceipt_scan_worker using(bucket_id='scan-artifacts' and storage.operation() in ('storage.object.delete','storage.object.delete_many') and public.worker_artifact_allowed(name,true));
 create policy public_worker_upload on storage.objects for insert to deployreceipt_scan_worker with check(bucket_id='scan-artifacts' and public.worker_artifact_allowed(name,false));
 create policy public_worker_cleanup on storage.objects for delete to deployreceipt_scan_worker using(bucket_id='scan-artifacts' and public.worker_artifact_allowed(name,true));
-revoke all on function public.public_scan_worker(),public.public_scan_ready(),public.public_scanning_status(),public.public_worker_attest(boolean,text),public.public_target_origin(text),public.request_scan(uuid),public.request_public_scan(uuid,boolean),public.request_domain_verification(uuid),public.lease_scan_job(),public.worker_job_permitted(uuid,uuid,text),public.ack_scan_job(bigint),public.expired_scan_artifacts(),public.worker_tick(uuid,boolean,text),public.worker_artifact_allowed(text,boolean)from public,anon,authenticated;
+revoke all on function public.public_scan_worker(),public.public_scan_ready(),public.public_scanning_status(),public.public_worker_attest(boolean,text,text),public.public_target_origin(text),public.request_scan(uuid),public.request_public_scan(uuid,boolean),public.request_domain_verification(uuid),public.lease_scan_job(),public.worker_job_permitted(uuid,uuid,text),public.ack_scan_job(bigint),public.expired_scan_artifacts(),public.worker_tick(uuid,boolean,text),public.worker_artifact_allowed(text,boolean)from public,anon,authenticated;
 grant execute on function public.request_scan(uuid),public.request_public_scan(uuid,boolean),public.request_domain_verification(uuid),public.public_scanning_status()to authenticated;
 grant execute on function public.lease_scan_job(),public.ack_scan_job(bigint),public.expired_scan_artifacts(),public.worker_tick(uuid,boolean,text)to service_role,deployreceipt_scan_worker;
-grant execute on function public.public_worker_attest(boolean,text),public.worker_artifact_allowed(text,boolean)to deployreceipt_scan_worker;
+grant execute on function public.public_worker_attest(boolean,text,text),public.worker_artifact_allowed(text,boolean)to deployreceipt_scan_worker;
 create or replace function public.beta_readiness(p_environment text,p_scanning boolean) returns boolean language sql stable security definer set search_path='' as $$
  select exists(select 1 from public.beta_settings where environment=p_environment and enforced and scanning_enabled=p_scanning)
  and exists(select 1 from storage.buckets where id='scan-artifacts' and not public and file_size_limit<=2097152)

@@ -5,6 +5,8 @@ services:
     build:
       context: .
       dockerfile: worker/Dockerfile.public-browser
+      args:
+        SCAN_CODE_SHA: ${PUBLIC_SCAN_CODE_SHA:?Set the verified security-test commit}
     networks:
       public_browser_net:
         ipv4_address: 172.31.78.20
@@ -23,6 +25,8 @@ services:
     build:
       context: .
       dockerfile: worker/Dockerfile.gateway
+      args:
+        SCAN_CODE_SHA: ${PUBLIC_SCAN_CODE_SHA:?Set the verified security-test commit}
     environment:
       GATEWAY_CONTROL_KEY: ${GATEWAY_CONTROL_KEY:?Set the private gateway control key}
     networks:
@@ -42,6 +46,9 @@ services:
     build:
       context: .
       dockerfile: worker/Dockerfile
+      args:
+        SCAN_CODE_SHA: ${PUBLIC_SCAN_CODE_SHA:?Set the verified security-test commit}
+    extra_hosts: ["host.docker.internal:host-gateway"]
     env_file: .env.public-worker
     environment:
       SCAN_WORKER_MODE: public

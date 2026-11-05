@@ -84,7 +84,11 @@ export type Database = {
     Functions: {
       public_scanning_status: { Args: Record<string, never>; Returns: boolean };
       public_worker_attest: {
-        Args: { p_ready: boolean; p_policy_version: string };
+        Args: {
+          p_ready: boolean;
+          p_policy_version: string;
+          p_security_suite_sha: string;
+        };
         Returns: boolean;
       };
       request_public_scan: {

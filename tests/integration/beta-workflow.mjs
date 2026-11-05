@@ -283,21 +283,19 @@ export async function verifyBeta({
     const lease = randomUUID();
     authorizationRun = randomUUID();
     checked(
-      await admin
-        .from("scan_runs")
-        .insert({
-          id: authorizationRun,
-          project_id: parent.project_id,
-          requested_by: parent.requested_by,
-          target_url: parent.target_url,
-          public_scope: true,
-          public_consent_at: new Date().toISOString(),
-          status: "running",
-          worker_identity: workerUser.id,
-          lease_token: lease,
-          lease_until: new Date(Date.now() + 180000).toISOString(),
-          attempts: 1,
-        }),
+      await admin.from("scan_runs").insert({
+        id: authorizationRun,
+        project_id: parent.project_id,
+        requested_by: parent.requested_by,
+        target_url: parent.target_url,
+        public_scope: true,
+        public_consent_at: new Date().toISOString(),
+        status: "running",
+        worker_identity: workerUser.id,
+        lease_token: lease,
+        lease_until: new Date(Date.now() + 180000).toISOString(),
+        attempts: 1,
+      }),
       "create disposable authorization fixture",
     );
     const png = checked(
@@ -358,6 +356,7 @@ export async function verifyBeta({
         await workerClient.rpc("public_worker_attest", {
           p_ready: true,
           p_policy_version: "public-gateway-v1",
+          p_security_suite_sha: "a".repeat(40),
         })
       ).error,
       "revoked worker JWT cannot attest",

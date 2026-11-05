@@ -19,6 +19,9 @@ if (
     process.env.SUPABASE_SECRET_KEY)
 )
   throw Error("approved_staging_worker_required");
+const codeSha = process.env.SCAN_CODE_SHA;
+if (publicMode && (!codeSha || !/^[a-f0-9]{40}$/.test(codeSha)))
+  throw Error("verified_code_revision_required");
 const url = process.env.SUPABASE_URL,
   key = publicMode
     ? process.env.SUPABASE_PUBLISHABLE_KEY
@@ -114,7 +117,13 @@ async function health(
     ]);
     if (responses.some((response) => !response.ok))
       throw Error("public_dependencies_unavailable");
+    const gatewayHealth = await responses[0].json();
     const browserHealth = await responses[1].json();
+    if (
+      gatewayHealth.code_sha !== codeSha ||
+      browserHealth.code_sha !== codeSha
+    )
+      throw Error("security_revision_mismatch");
     if (
       browserHealth.policy !== "public-gateway-v1" ||
       browserHealth.ready !== true
@@ -126,6 +135,7 @@ async function health(
           client.rpc("public_worker_attest", {
             p_ready: ready,
             p_policy_version: "public-gateway-v1",
+            p_security_suite_sha: codeSha!,
           }),
         ),
       ) && scanningEnabled;
@@ -157,8 +167,8 @@ async function main() {
     const email = process.env.WORKER_EMAIL,
       password = process.env.WORKER_PASSWORD;
     if (!email || !password) throw Error("dedicated_worker_login_required");
-    const login=await client.auth.signInWithPassword({email,password});
-    if(login.error)throw Error("dedicated_worker_login_failed");
+    const login = await client.auth.signInWithPassword({ email, password });
+    if (login.error) throw Error("dedicated_worker_login_failed");
     const claims = await client.auth.getClaims();
     if (
       claims.error ||

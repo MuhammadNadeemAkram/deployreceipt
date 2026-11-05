@@ -32,10 +32,40 @@ export async function openGateway(
   const { id } = await call("/open", { target, requests, seconds });
   if (typeof id !== "string" || !/^[a-f0-9]{64}$/.test(id))
     throw Error("invalid_gateway_scope");
+  let active = 0,
+    closed = false;
+  const waiters: Array<{ resolve: () => void; reject: (e: Error) => void }> =
+    [];
+  async function acquire() {
+    if (closed) throw new PolicyError("scope_expired");
+    if (active >= 2) {
+      if (waiters.length >= 100) throw new PolicyError("request_limit");
+      await new Promise<void>((resolve, reject) =>
+        waiters.push({ resolve, reject }),
+      );
+      return;
+    }
+    active++;
+  }
+  const release = () => {
+    const next = waiters.shift();
+    if (next) next.resolve();
+    else active--;
+  };
   return {
-    fetch: async (url: string, method: string): Promise<GatewayResponse> =>
-      call("/fetch", { id, url, method }),
+    fetch: async (url: string, method: string): Promise<GatewayResponse> => {
+      await acquire();
+      try {
+        if (closed) throw new PolicyError("scope_expired");
+        return await call("/fetch", { id, url, method });
+      } finally {
+        release();
+      }
+    },
     close: async () => {
+      closed = true;
+      for (const waiter of waiters.splice(0))
+        waiter.reject(new PolicyError("scope_expired"));
       await call("/close", { id });
     },
   };
