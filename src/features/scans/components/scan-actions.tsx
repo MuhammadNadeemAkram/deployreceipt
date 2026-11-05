@@ -1,22 +1,28 @@
 "use client";
 import { useActionState } from "react";
 import type { FormState } from "@/features/auth/validation";
-import { requestScan, requestVerification } from "../actions";
+import {
+  requestPublicScan,
+  requestScan,
+  requestVerification,
+} from "../actions";
 export function ScanActions({
   projectId,
   canScan,
   hasChallenge,
+  publicMode = false,
 }: {
   projectId: string;
   canScan: boolean;
   hasChallenge: boolean;
+  publicMode?: boolean;
 }) {
   const [verification, verify, verifying] = useActionState(
     requestVerification.bind(null, projectId),
     {} as FormState,
   );
   const [scan, run, starting] = useActionState(
-    requestScan.bind(null, projectId),
+    (publicMode ? requestPublicScan : requestScan).bind(null, projectId),
     {} as FormState,
   );
   return (
@@ -44,6 +50,20 @@ export function ScanActions({
       </form>
       {canScan && (
         <form action={run} aria-busy={starting}>
+          {publicMode && (
+            <label className="field-hint">
+              <input
+                type="checkbox"
+                name="consent"
+                value="authorized"
+                required
+              />{" "}
+              I own or am authorized to test this exact hostname. I authorize
+              bounded, unauthenticated GET/HEAD checks and screenshots. Website
+              JavaScript and GET requests can have side effects; third-party
+              resources will be blocked.
+            </label>
+          )}
           <button className="button" disabled={starting}>
             {starting ? "Queuing…" : "Run QA Scan"}
           </button>

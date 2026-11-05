@@ -1,3 +1,5 @@
+import { destination, publicOrigin, PolicyError } from "./gateway/policy";
+import type { GatewayResponse } from "./gateway/fetch";
 import type { Browser, BrowserContext } from "playwright";
 import type { Finding, ScanSettings } from "../src/features/scans/types";
 import {
@@ -16,9 +18,13 @@ export async function disconnectBrowser(browser: Pick<Browser, "close">) {
   try {
     await Promise.race([
       browser.close(),
-      new Promise<void>((resolve) => { timer = setTimeout(resolve, 5000); }),
+      new Promise<void>((resolve) => {
+        timer = setTimeout(resolve, 5000);
+      }),
     ]);
-  } finally { clearTimeout(timer); }
+  } finally {
+    clearTimeout(timer);
+  }
 }
 export function internalLinks(
   values: string[],
@@ -50,10 +56,28 @@ export async function scanWebsite(
   target: string,
   settings: ScanSettings,
   testPolicy?: { authorize: (url: string) => unknown },
+  publicTransport?: {
+    fetch: (url: string, method: string) => Promise<GatewayResponse>;
+  },
 ): Promise<ScanResult> {
   if (testPolicy && process.env.NODE_ENV !== "test")
     throw new Error("test_policy_forbidden");
-  const authorize = testPolicy?.authorize ?? fixtureUrl;
+  const publicMode = settings.mode === "public";
+  if (publicMode && !publicTransport)
+    throw new Error("public_gateway_required");
+  if (!publicMode && publicTransport)
+    throw new Error("unexpected_public_transport");
+  const origin = publicMode ? publicOrigin(target).origin : "";
+  const authorize = publicMode
+    ? (url: string) => destination(url, origin, "GET")
+    : (testPolicy?.authorize ?? fixtureUrl);
+  const policyFailures: Array<{ url: string; code: string }> = [];
+  let policyCount = 0;
+  const blocked = (value: string, code: string) => {
+    policyCount++;
+    if (policyFailures.length < 20)
+      policyFailures.push({ url: sanitizeUrl(value), code });
+  };
   authorize(target);
   const checks: Finding[] = [];
   const artifacts: ScanResult["artifacts"] = {};
@@ -117,12 +141,38 @@ export async function scanWebsite(
           throw new Error("request_limit");
         }
         authorize(route.request().url());
-        await route.continue();
-      } catch {
+        if (publicTransport) {
+          let prior = route.request().redirectedFrom(),
+            hops = 0;
+          while (prior) {
+            if (++hops > 5) throw new PolicyError("redirect_limit");
+            prior = prior.redirectedFrom();
+          }
+          const result = await publicTransport.fetch(
+            route.request().url(),
+            route.request().method(),
+          );
+          const body = Buffer.from(result.body, "base64");
+          if (body.length > 2097152) throw new PolicyError("response_limit");
+          await route.fulfill({
+            status: result.status,
+            headers: result.headers,
+            body,
+          });
+        } else await route.continue();
+      } catch (error) {
+        if (publicMode)
+          blocked(
+            route.request().url(),
+            error instanceof PolicyError ? error.code : "policy_rejected",
+          );
         await route.abort("blockedbyclient");
       }
     });
-    await ctx.routeWebSocket(/.*/, (socket) => { addFailure(socket.url(), "blocked"); socket.close(); });
+    await ctx.routeWebSocket(/.*/, (socket) => {
+      addFailure(socket.url(), "blocked");
+      socket.close();
+    });
     ctx.on("page", (page) => {
       if (ctx.pages().length > 1) void page.close();
     });
@@ -186,10 +236,16 @@ export async function scanWebsite(
     } catch (error) {
       finding(
         "availability",
-        "fail",
-        "Navigation did not complete.",
+        publicMode && policyCount ? "warning" : "fail",
+        publicMode && policyCount
+          ? "Navigation was blocked or could not be executed through the policy gateway."
+          : "Navigation did not complete.",
         {
-          category: failureCategory(String(error)),
+          executed: !(publicMode && policyCount),
+          category:
+            publicMode && policyCount
+              ? "policy_blocked"
+              : failureCategory(String(error)),
           final_url: sanitizeUrl(desktop.url()),
         },
         started,
@@ -215,6 +271,16 @@ export async function scanWebsite(
     ] as const) {
       started = performance.now();
       try {
+        if (publicMode && !loaded) {
+          finding(
+            type,
+            "warning",
+            "Screenshot not executed because target navigation was unavailable.",
+            { executed: false, policy_blocked: policyCount > 0, viewport },
+            started,
+          );
+          continue;
+        }
         const page =
           type === "desktop" ? desktop : await context(viewport, true);
         if (type === "mobile") {
@@ -227,7 +293,12 @@ export async function scanWebsite(
           timeout: 5000,
           animations: "disabled",
         });
-        if (buffer.length > settings.screenshot_bytes)
+        if (
+          buffer.length >
+          (publicMode
+            ? Math.min(2097152, settings.screenshot_bytes)
+            : settings.screenshot_bytes)
+        )
           finding(
             type,
             "warning",
@@ -282,35 +353,74 @@ export async function scanWebsite(
         });
       }
     }
-    const broken = observations.filter(
-      (item) => !item.status || item.status >= 400,
+    const broken = observations.filter((item) =>
+      publicMode
+        ? item.status !== undefined && item.status >= 400
+        : !item.status || item.status >= 400,
     ).length;
     finding(
       "links",
-      broken ? "fail" : observations.length ? "pass" : "warning",
+      broken
+        ? publicMode && observations.some((item) => item.category === "blocked")
+          ? "warning"
+          : "fail"
+        : publicMode && observations.some((item) => !item.status)
+          ? "warning"
+          : observations.length
+            ? "pass"
+            : "warning",
       observations.length
         ? "Bounded internal-link navigation completed."
         : "No eligible internal links were observed.",
-      { checked: observations.length, broken, links: observations },
+      {
+        checked: observations.length,
+        broken,
+        links: observations,
+        ...(publicMode
+          ? {
+              executed: loaded,
+              executed_links: observations.filter(
+                (item) => item.status !== undefined,
+              ).length,
+              not_executed_links: observations.filter(
+                (item) => item.status === undefined,
+              ).length,
+            }
+          : {}),
+      },
       started,
     );
     finding(
       "javascript",
-      jsTotal ? "warning" : "pass",
-      jsTotal
-        ? "JavaScript or console errors were observed."
-        : "No JavaScript or console errors were observed during this run.",
-      { count: jsTotal, messages: js, truncated: jsTotal > js.length },
+      publicMode && (!loaded || policyCount > 0)
+        ? "warning"
+        : jsTotal
+          ? "warning"
+          : "pass",
+      publicMode && !loaded
+        ? "JavaScript observation was not executed because target navigation was unavailable."
+        : jsTotal
+          ? "JavaScript or console errors were observed."
+          : "No JavaScript or console errors were observed during this run.",
+      {
+        count: jsTotal,
+        messages: js,
+        truncated: jsTotal > js.length,
+        ...(publicMode ? { executed: loaded } : {}),
+      },
       performance.now(),
     );
     finding(
       "network",
-      failedTotal || limited ? "warning" : "pass",
-      failedTotal || limited
+      failedTotal || limited || policyCount ? "warning" : "pass",
+      failedTotal || limited || policyCount
         ? "Failed or blocked requests were observed."
         : "No failed requests were observed during this run.",
       {
         count: failedTotal,
+        policy_blocked: policyCount,
+        policy_observations: policyFailures,
+        transport: publicMode ? "pinned_gateway" : "fixture_network",
         requests,
         request_limit_reached: limited,
         failures: failed,

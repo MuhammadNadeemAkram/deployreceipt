@@ -181,3 +181,22 @@ describe("private evidence and renderer limits", () => {
     await expect(renderReportPdf(model)).rejects.toThrow("pdf_input_limit");
   });
 });
+
+it("carries public policy blocks and unexecuted coverage into the report/PDF model", () => {
+  const input = reportFixture();
+  input.scan.configuration_snapshot = {
+    mode: "public",
+    transport: "pinned_gateway_v1",
+  };
+  input.checks.find((c) => c.check_type === "network")!.details.policy_blocked =
+    3;
+  const mobile = input.checks.find((c) => c.check_type === "mobile")!;
+  mobile.details.executed = false;
+  mobile.outcome = "warning";
+  input.scan.passed_count = 2;
+  input.scan.warning_count = 3;
+  const model = buildReport(input);
+  expect(model.limitations.join(" ")).toContain("Authorized public scan");
+  expect(model.limitations.join(" ")).toContain("Policy-blocked requests: 3");
+  expect(model.limitations.join(" ")).toContain("mobile");
+});

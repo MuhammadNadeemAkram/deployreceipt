@@ -1,0 +1,90 @@
+# No external route. Attack probes run inside an isolated controlled network only.
+services:
+  isolation-probe:
+    build:
+      context: .
+      dockerfile: worker/Dockerfile.public-browser
+    environment:
+      PUBLIC_ISOLATION_PROBE: "1"
+    depends_on: [private-trap]
+    networks:
+      isolated_probe:
+        ipv4_address: 172.31.81.20
+    cap_drop: [ALL]
+    cap_add: [NET_ADMIN, SETUID, SETGID, SETPCAP]
+    security_opt:
+      ["no-new-privileges:true", "seccomp=./worker/chromium-seccomp.json"]
+    read_only: true
+    tmpfs: ["/tmp:size=256m", "/home/pwuser:size=64m"]
+    shm_size: 256m
+    mem_limit: 768m
+    cpus: 1
+    pids_limit: 256
+  private-trap:
+    image: node:24-bookworm-slim
+    user: node
+    command:
+      [
+        "node",
+        "-e",
+        "require('node:http').createServer((q,s)=>s.end('controlled private trap')).listen(8765,'0.0.0.0')",
+      ]
+    networks:
+      isolated_probe:
+        ipv4_address: 172.31.81.10
+    read_only: true
+    cap_drop: [ALL]
+    mem_limit: 64m
+    pids_limit: 32
+  tls-fixture:
+    image: node:24-bookworm-slim
+    user: node
+    command: ["node", "/app/fixture.mjs"]
+    volumes:
+      - ./tests/integration/gateway-fixture.mjs:/app/fixture.mjs:ro
+      - ./work/gateway-certs:/certs:ro
+    networks:
+      tls_probe:
+        ipv4_address: 11.77.0.10
+      private_probe:
+        ipv4_address: 172.31.80.10
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    mem_limit: 128m
+    pids_limit: 64
+  gateway-transport:
+    build:
+      context: .
+      dockerfile: worker/Dockerfile.gateway-test
+    environment:
+      NODE_EXTRA_CA_CERTS: /certs/server.crt
+    volumes:
+      - ./work/gateway-certs/server.crt:/certs/server.crt:ro
+    depends_on: [tls-fixture]
+    networks:
+      tls_probe:
+        ipv4_address: 11.77.0.20
+      private_probe:
+        ipv4_address: 172.31.80.20
+    read_only: true
+    cap_drop: [ALL]
+    cap_add: [NET_ADMIN, SETUID, SETGID, SETPCAP]
+    security_opt: ["no-new-privileges:true"]
+    tmpfs: ["/tmp:size=16m,mode=1777,nosuid,nodev,noexec"]
+    mem_limit: 256m
+    cpus: 0.5
+    pids_limit: 64
+networks:
+  tls_probe:
+    internal: true
+    ipam:
+      config: [{ subnet: 11.77.0.0/24 }]
+  private_probe:
+    internal: true
+    ipam:
+      config: [{ subnet: 172.31.80.0/24 }]
+  isolated_probe:
+    internal: true
+    ipam:
+      config: [{ subnet: 172.31.81.0/24 }]

@@ -2,9 +2,9 @@
 
 ## Supported scope and safety gate
 
-Public URL scanning is **disabled in the database**. There is no public-mode environment switch. The only enabled scan target in the supported development mode is `http://fixture:8080/` (or a path on that origin), served by the controlled fixture in this repository. DNS ownership verification is implemented for public domains, but verification does not enable public scans.
+This document describes the preserved **fixture-only topology**. For the separately gated Task 07 public staging implementation, use [public scanning](public-scanning.md) and its [validation record](public-scanning-validation.md). Public mode defaults off and cannot be enabled by a client request. The only enabled scan target in the supported development mode is `http://fixture:8080/` (or a path on that origin), served by the controlled fixture in this repository. DNS ownership verification is implemented for public domains, but verification does not enable public scans.
 
-Do not describe this milestone as a production-secure arbitrary-URL scanner. Before implementing public mode, independently review and test a connection-time egress proxy, IPv4/IPv6 address policy, pinned DNS/TLS connections, redirects, resource requests, sandboxing, and deployment network controls. `worker/security.ts` includes preparatory public-address/pinning utilities and tests; they are not a public-browser transport.
+Do not describe this milestone as a production-secure arbitrary-URL scanner. The separate public mode must independently review and test a connection-time egress proxy, IPv4/IPv6 address policy, pinned DNS/TLS connections, redirects, resource requests, sandboxing, and deployment network controls. `worker/security.ts` includes preparatory public-address/pinning utilities and tests; the public-browser transport is implemented separately under `worker/gateway/`.
 
 The local browser container has a firewall allowing new outbound TCP connections only to the fixed fixture IP/port. IPv6 output is denied. Docker's scan network is internal. The browser uses a fixed resolver mapping, blocks service workers/WebSockets/popups, and authorizes each request. Browser interception is an additional check, not the network boundary.
 
@@ -33,7 +33,7 @@ supabase db push --dry-run
 supabase db push
 ```
 
-Review the dry run. Never reset a hosted database. The migration enables pgmq, creates the private `scan_jobs` queue and scan tables/functions, and creates a private `scan-artifacts` bucket. Do not expose pgmq/pgmq_public schemas or restore anonymous/authenticated execute grants on queue helpers. Clients may call only the two owner-checked request RPCs. Worker RPCs are restricted to service_role.
+Review the dry run. Never reset a hosted database. The migration enables pgmq, creates the private `scan_jobs` queue and scan tables/functions, and creates a private `scan-artifacts` bucket. Do not expose pgmq/pgmq_public schemas or restore anonymous/authenticated execute grants on queue helpers. Clients may call only the two owner-checked request RPCs. The fixture worker uses service_role; the public controller uses the dedicated restricted worker role introduced by Task 07.
 
 Application tables have RLS. Users cannot insert/update/delete verification results, runs, or checks directly. Owners can read only their project records. Existing project policies still apply. Any URL edit removes verification and cancels active runs; an old lease cannot commit after that cancellation.
 
@@ -54,7 +54,7 @@ Prerequisites: Docker Engine/Compose, Linux container support, a disposable loca
 
 1. Start local Supabase (`supabase start`) and apply migrations using `supabase db reset --local` only if its data is disposable.
 2. Configure the existing web .env.local with local API URL and publishable key as documented in the Supabase guide.
-3. Copy .env.worker.example to .env.worker. Set SUPABASE_URL to `http://host.docker.internal:54321` and SUPABASE_SECRET_KEY to the local **secret** API key (`sb_secret_...`). For a hosted development project, use its HTTPS API URL and its worker-only secret. Never use NEXT_PUBLIC_ for this key.
+3. Copy .env.worker.example to .env.worker. Set SUPABASE*URL to `http://host.docker.internal:54321` and SUPABASE_SECRET_KEY to the local **secret** API key (`sb_secret*...`). For a hosted development project, use its HTTPS API URL and its worker-only secret. Never use NEXT*PUBLIC* for this key.
 4. In the disposable development database, explicitly enable only the fixture mode:
 
 ```sql
@@ -144,8 +144,8 @@ This mode applies the identical firewall and capability drop before attempting f
 
 ## Remaining deployment requirements
 
-Public scanning remains unavailable even if unit/container smoke tests pass. A production public mode needs an independent network/SSRF review, connection-time proxy enforcement for every protocol, sandbox isolation and resource testing, deployment-specific egress verification, worker-specific least-privilege credentials, operational monitoring and retention scheduling. A real configured Supabase/browser end-to-end run remains a separate verification from unit, browser-fixture and SQL tests.
+Public scanning requires the separate Task 07 gates; fixture unit/container smoke tests alone never authorize it. A production public mode needs an independent network/SSRF review, connection-time proxy enforcement for every protocol, sandbox isolation and resource testing, deployment-specific egress verification, worker-specific least-privilege credentials, operational monitoring and retention scheduling. A real configured Supabase/browser end-to-end run remains a separate verification from unit, browser-fixture and SQL tests.
 
-No AI, PDFs, client approvals, billing, unrestricted crawling, user scripts, or public performance claims are included.
+This fixture engine itself does not implement AI, billing, unrestricted crawling, user scripts or public performance certification. Existing reports/PDFs and client approvals consume its persisted results.
 
 Worker shutdown is bounded too: a non-responsive browser disconnect stops blocking the attempt after five seconds. The Compose worker restarts after a process crash; durable leases govern recovery rather than an in-memory queue.

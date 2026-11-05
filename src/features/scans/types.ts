@@ -1,5 +1,9 @@
 export type ScanStatus =
-  "queued" | "running" | "completed" | "failed" | "timed_out";
+  | "queued"
+  | "running"
+  | "completed"
+  | "failed"
+  | "timed_out";
 export type ScanRun = {
   configuration_snapshot?: Record<string, unknown> | null;
   verification_snapshot?: Record<string, unknown> | null;
@@ -24,7 +28,12 @@ export type ScanCheck = {
   id: string;
   scan_run_id: string;
   check_type:
-    "availability" | "desktop" | "mobile" | "javascript" | "links" | "network";
+    | "availability"
+    | "desktop"
+    | "mobile"
+    | "javascript"
+    | "links"
+    | "network";
   outcome: "pass" | "fail" | "warning";
   description: string;
   details: Record<string, unknown>;
@@ -49,7 +58,7 @@ export type Verification = {
 };
 export type ScanSettings = {
   singleton: boolean;
-  mode: "disabled" | "local";
+  mode: "disabled" | "local" | "public";
   daily_allowance: number;
   cooldown_seconds: number;
   timeout_seconds: number;
@@ -62,6 +71,7 @@ export type ScanSettings = {
 export type ScanJob =
   | {
       kind: "scan";
+      verification?: { token: string; domain: string; expires_at: string };
       message_id: string;
       lease: string;
       run: ScanRun;

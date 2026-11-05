@@ -33,6 +33,13 @@ export default async function ScanDetail({
       </div>
       <section className="scan-panel">
         <p>Requested {new Date(run.created_at).toISOString()}</p>
+        {run.configuration_snapshot?.mode === "public" && (
+          <p className="notice">
+            Authorized public staging scan · exact verified origin · GET/HEAD
+            only. Blocked resources are coverage limitations; unexecuted checks
+            are recorded as warnings.
+          </p>
+        )}
         {run.completed_at && (
           <p>Finished {new Date(run.completed_at).toISOString()}</p>
         )}

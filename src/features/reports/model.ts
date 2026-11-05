@@ -55,6 +55,13 @@ export function buildReport(input: {
     checks.some((check) => check.scan_run_id !== scan.id)
   )
     throw new Error("report_data_inconsistent");
+  if (
+    checks.some(
+      (check) =>
+        check.details.executed === false && check.outcome !== "warning",
+    )
+  )
+    throw new Error("report_data_inconsistent");
   const counts = { pass: 0, fail: 0, warning: 0 };
   checks.forEach((check) => counts[check.outcome]++);
   if (
@@ -78,7 +85,25 @@ export function buildReport(input: {
       path: check.screenshot_path,
       state: expired ? "expired" : "available",
     }));
+  const publicCoverage = scan.configuration_snapshot?.mode === "public";
+  const blocked = checks.reduce(
+    (sum, check) =>
+      sum +
+      (typeof check.details.policy_blocked === "number"
+        ? check.details.policy_blocked
+        : 0),
+    0,
+  );
+  const notExecuted = checks
+    .filter((check) => check.details.executed === false)
+    .map((check) => check.check_type);
   const limitations = [
+    ...(publicCoverage
+      ? [
+          "Authorized public scan: exact verified origin, unauthenticated GET/HEAD only, controller-mediated pinned gateway, third-party resources blocked. This is not guaranteed side-effect-free.",
+          `Policy-blocked requests: ${blocked}. Checks not executed: ${notExecuted.join(", ") || "none recorded"}. Blocked observations are warnings, not confirmed website defects.`,
+        ]
+      : []),
     "This report records observed checks; it is not a security certification, accessibility audit, visual-regression verdict, or release approval.",
     "Scope is one target, two viewports, and at most five eligible internal links. Third-party requests may be blocked by policy.",
     "Severity and resolution are human triage. Manual changes do not alter the automated outcomes.",

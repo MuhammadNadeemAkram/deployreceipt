@@ -1,0 +1,81 @@
+# Separate public staging topology. No published ports, host mounts, or production activation.
+services:
+  public-browser:
+    restart: unless-stopped
+    build:
+      context: .
+      dockerfile: worker/Dockerfile.public-browser
+      args:
+        SCAN_CODE_SHA: ${PUBLIC_SCAN_CODE_SHA:?Set the verified security-test commit}
+    networks:
+      public_browser_net:
+        ipv4_address: 172.31.78.20
+    cap_drop: [ALL]
+    cap_add: [NET_ADMIN, SETUID, SETGID, SETPCAP]
+    security_opt:
+      ["no-new-privileges:true", "seccomp=./worker/chromium-seccomp.json"]
+    read_only: true
+    tmpfs: ["/tmp:size=256m", "/home/pwuser:size=64m"]
+    shm_size: 256m
+    mem_limit: 768m
+    cpus: 1
+    pids_limit: 256
+  public-gateway:
+    restart: unless-stopped
+    build:
+      context: .
+      dockerfile: worker/Dockerfile.gateway
+      args:
+        SCAN_CODE_SHA: ${PUBLIC_SCAN_CODE_SHA:?Set the verified security-test commit}
+    environment:
+      GATEWAY_CONTROL_KEY: ${GATEWAY_CONTROL_KEY:?Set the private gateway control key}
+    networks:
+      public_control_net:
+        ipv4_address: 172.31.79.30
+      gateway_egress: {}
+    cap_drop: [ALL]
+    cap_add: [NET_ADMIN, SETUID, SETGID, SETPCAP]
+    security_opt: ["no-new-privileges:true"]
+    read_only: true
+    tmpfs: ["/tmp:size=16m,mode=1777,nosuid,nodev,noexec"]
+    mem_limit: 256m
+    cpus: 0.5
+    pids_limit: 64
+  public-worker:
+    restart: unless-stopped
+    build:
+      context: .
+      dockerfile: worker/Dockerfile
+      args:
+        SCAN_CODE_SHA: ${PUBLIC_SCAN_CODE_SHA:?Set the verified security-test commit}
+    extra_hosts: ["host.docker.internal:host-gateway"]
+    env_file: .env.public-worker
+    environment:
+      SCAN_WORKER_MODE: public
+      APP_ENV: staging
+      PUBLIC_SCAN_STAGING: approved
+    networks:
+      public_browser_net:
+        ipv4_address: 172.31.78.30
+      public_control_net:
+        ipv4_address: 172.31.79.20
+      worker_api: {}
+    depends_on: [public-browser, public-gateway]
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    tmpfs: ["/tmp:size=32m,mode=1777,nosuid,nodev,noexec"]
+    mem_limit: 256m
+    cpus: 0.5
+    pids_limit: 64
+networks:
+  public_browser_net:
+    internal: true
+    ipam:
+      config: [{ subnet: 172.31.78.0/24 }]
+  public_control_net:
+    internal: true
+    ipam:
+      config: [{ subnet: 172.31.79.0/24 }]
+  gateway_egress: {}
+  worker_api: {}

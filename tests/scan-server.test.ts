@@ -1,4 +1,4 @@
-import { beforeEach, it, expect, vi } from "vitest";
+import { afterEach, beforeEach, it, expect, vi } from "vitest";
 const m = vi.hoisted(() => ({
   requireUser: vi.fn(),
   rpc: vi.fn(),
@@ -20,7 +20,11 @@ vi.mock("next/navigation", () => ({
   },
 }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
-import { requestScan, requestVerification } from "@/features/scans/actions";
+import {
+  requestPublicScan,
+  requestScan,
+  requestVerification,
+} from "@/features/scans/actions";
 import { ownedScan } from "@/features/scans/queries";
 import { GET } from "@/app/api/scans/[id]/artifacts/[checkId]/route";
 const id = "11111111-1111-4111-8111-111111111111",
@@ -111,4 +115,48 @@ it("signs only the stored artifact of an owned scan for 60 seconds", async () =>
   expect(m.sign).toHaveBeenCalledWith(id + "/1/desktop.png", 60);
   expect(response.status).toBe(303);
   expect(response.headers.get("cache-control")).toContain("no-store");
+});
+
+afterEach(() => vi.unstubAllEnvs());
+function approvedStaging() {
+  vi.stubEnv("APP_ENV", "staging");
+  vi.stubEnv("SCANNING_AVAILABLE", "public");
+  vi.stubEnv("PUBLIC_SCAN_STAGING", "approved");
+}
+it("public scan submission requires fresh explicit consent and sends only stored project identity", async () => {
+  approvedStaging();
+  const form = new FormData();
+  form.set("consent", "authorized");
+  form.set("target_url", "http://169.254.169.254/");
+  m.rpc.mockResolvedValue({ data: id, error: null });
+  await expect(requestPublicScan(id, {}, form)).rejects.toThrow(
+    "REDIRECT:/dashboard/scans/" + id,
+  );
+  expect(m.rpc).toHaveBeenCalledWith("request_public_scan", {
+    p_project_id: id,
+    p_consent: true,
+  });
+  expect(m.eq).toHaveBeenCalledWith("owner_id", "owner");
+});
+it("public action fails closed for omitted consent or non-staging configuration", async () => {
+  approvedStaging();
+  expect((await requestPublicScan(id, {}, new FormData())).error).toContain(
+    "authorize",
+  );
+  expect(m.rpc).not.toHaveBeenCalled();
+  const form = new FormData();
+  form.set("consent", "authorized");
+  vi.stubEnv("APP_ENV", "production");
+  expect((await requestPublicScan(id, {}, form)).error).toContain("paused");
+  expect(m.rpc).not.toHaveBeenCalled();
+});
+it("public readiness errors remain actionable without exposing provider details", async () => {
+  approvedStaging();
+  const form = new FormData();
+  form.set("consent", "authorized");
+  m.rpc.mockResolvedValue({
+    data: null,
+    error: { message: "public_scanning_unavailable" },
+  });
+  expect((await requestPublicScan(id, {}, form)).error).toContain("readiness");
 });

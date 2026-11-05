@@ -4,12 +4,24 @@ on:
     branches: [main]
   pull_request:
   workflow_dispatch:
+    inputs:
+      authorized_hostname:
+        description: "Optional owner-authorized public staging test: www.noviqen.co.uk"
+        required: false
+        type: string
 permissions:
   contents: read
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 jobs:
+  authorized-public-staging:
+    if: github.event_name == 'workflow_dispatch' && inputs.authorized_hostname == 'www.noviqen.co.uk'
+    uses: ./.github/workflows/public-scanning-staging.yml
+    with:
+      authorized_hostname: ${{ inputs.authorized_hostname }}
+    secrets:
+      PUBLIC_SCAN_E2E_CHALLENGE: ${{ secrets.PUBLIC_SCAN_E2E_CHALLENGE }}
   validate:
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -52,6 +64,20 @@ jobs:
       - run: docker compose -f compose.scan-local.yml run --build --rm -e SCAN_EGRESS_TEST_ONLY=1 browser
       - if: always()
         run: docker compose -f compose.scan-local.yml down
+  public-browser-isolation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - name: Generate disposable TLS fixture identity
+        run: |
+          mkdir -p work/gateway-certs
+          openssl req -x509 -newkey rsa:2048 -nodes -days 1 -keyout work/gateway-certs/server.key -out work/gateway-certs/server.crt -subj '/CN=owned.qa-fixture.net' -addext 'subjectAltName=DNS:owned.qa-fixture.net' >/dev/null 2>&1
+          chmod 644 work/gateway-certs/server.key
+      - run: docker compose -f compose.scan-public-test.yml run --build --rm isolation-probe
+      - run: docker compose -f compose.scan-public-test.yml run --build --rm gateway-transport
+      - if: always()
+        run: docker compose -f compose.scan-public-test.yml down
   reports-end-to-end:
     runs-on: ubuntu-latest
     timeout-minutes: 25

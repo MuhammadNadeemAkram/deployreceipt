@@ -33,16 +33,25 @@ export function publicUrl(value: string) {
   return url;
 }
 export function assertPublicAddress(address: string) {
-  const parsed = ipaddr.process(address);
+  const original = ipaddr.parse(address);
+  if (
+    original.kind() === "ipv6" &&
+    (original as ipaddr.IPv6).isIPv4MappedAddress()
+  )
+    throw new Error("blocked_address");
+  const parsed = original;
   if (parsed.range() !== "unicast") throw new Error("blocked_address");
   if (parsed.kind() === "ipv6" && !parsed.match(ipaddr.parseCIDR("2000::/3")))
     throw new Error("blocked_address");
   // Additional IANA special-purpose ranges not consistently classified by parsers.
   if (
     parsed.kind() === "ipv4" &&
-    ["192.0.0.0/24", "192.88.99.0/24", "198.18.0.0/15"].some((cidr) =>
-      parsed.match(ipaddr.parseCIDR(cidr)),
-    )
+    [
+      "192.0.0.0/24",
+      "192.88.99.0/24",
+      "198.18.0.0/15",
+      "168.63.129.16/32",
+    ].some((cidr) => parsed.match(ipaddr.parseCIDR(cidr)))
   )
     throw new Error("blocked_address");
 }

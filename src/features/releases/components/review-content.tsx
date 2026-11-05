@@ -67,6 +67,18 @@ export function ReviewContent({
           {review.release_notes || "No release notes provided."}
         </p>
         <h3>Scope and limitations</h3>
+        {typeof s.configuration === "object" &&
+          s.configuration !== null &&
+          "mode" in s.configuration &&
+          s.configuration.mode === "public" && (
+            <p className="notice">
+              Authorized public scan: exact verified origin and unauthenticated
+              GET/HEAD requests through a pinned policy gateway. Policy-blocked
+              resources and checks marked not executed are coverage limitations,
+              not confirmed website defects. Browser execution is not guaranteed
+              side-effect-free.
+            </p>
+          )}
         <p>
           Scan date: {s.scan_date}. One target, desktop and mobile viewports,
           and a bounded internal-link check. Automated outcomes remain separate
