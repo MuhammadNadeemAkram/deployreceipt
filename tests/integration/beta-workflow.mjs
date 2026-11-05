@@ -230,6 +230,148 @@ export async function verifyBeta({
     "recover readiness",
   );
   assert.equal((await fetch(site + "/api/ready")).status, 200);
+  // Real Auth hook and Storage API boundary with a dedicated role. This is an authorization fixture, not a public website scan.
+  const workerEmail = "worker-" + randomUUID() + "@example.test",
+    workerPassword = randomBytes(24).toString("base64url") + "Aa1!";
+  checked(
+    await admin.from("beta_access").insert({ email: workerEmail }),
+    "admit worker identity",
+  );
+  const workerUser = checked(
+    await admin.auth.admin.createUser({
+      email: workerEmail,
+      password: workerPassword,
+      email_confirm: true,
+    }),
+    "create dedicated worker",
+  ).user;
+  let authorizationRun;
+  const workerClient = createClient(api, publishable, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+  try {
+    checked(
+      await admin
+        .from("scan_worker_identities")
+        .insert({ user_id: workerUser.id, active: true }),
+      "register worker role",
+    );
+    checked(
+      await workerClient.auth.signInWithPassword({
+        email: workerEmail,
+        password: workerPassword,
+      }),
+      "dedicated worker login",
+    );
+    const claims = checked(
+      await workerClient.auth.getClaims(),
+      "dedicated role claims",
+    );
+    assert.equal(claims.claims.role, "deployreceipt_scan_worker");
+    assert(
+      (await workerClient.from("projects").select("id")).error,
+      "worker cannot read application data",
+    );
+    const parent = checked(
+      await admin
+        .from("scan_runs")
+        .select("project_id,requested_by,target_url")
+        .eq("id", checks[0].scan_run_id)
+        .single(),
+      "authorization fixture scope",
+    );
+    const lease = randomUUID();
+    authorizationRun = randomUUID();
+    checked(
+      await admin
+        .from("scan_runs")
+        .insert({
+          id: authorizationRun,
+          project_id: parent.project_id,
+          requested_by: parent.requested_by,
+          target_url: parent.target_url,
+          public_scope: true,
+          public_consent_at: new Date().toISOString(),
+          status: "running",
+          worker_identity: workerUser.id,
+          lease_token: lease,
+          lease_until: new Date(Date.now() + 180000).toISOString(),
+          attempts: 1,
+        }),
+      "create disposable authorization fixture",
+    );
+    const png = checked(
+      await admin.storage
+        .from("scan-artifacts")
+        .download(image.screenshot_path),
+      "existing real fixture PNG",
+    );
+    const path = authorizationRun + "/1/desktop.png";
+    checked(
+      await workerClient.storage
+        .from("scan-artifacts")
+        .upload(path, png, { contentType: "image/png", upsert: false }),
+      "scoped worker upload",
+    );
+    assert(
+      (await workerClient.storage.from("scan-artifacts").download(path)).error,
+      "worker cannot read private screenshot bytes",
+    );
+    assert(
+      (
+        await workerClient.storage
+          .from("scan-artifacts")
+          .upload(randomUUID() + "/1/desktop.png", png, {
+            contentType: "image/png",
+          })
+      ).error,
+      "worker cannot write cross-run evidence",
+    );
+    checked(
+      await workerClient.rpc("finish_scan", {
+        p_scan_id: authorizationRun,
+        p_lease: lease,
+        p_status: "timed_out",
+        p_checks: [],
+      }),
+      "assigned worker diagnostic finalization",
+    );
+    assert(
+      (
+        await workerClient.storage
+          .from("scan-artifacts")
+          .upload(authorizationRun + "/1/mobile.png", png, {
+            contentType: "image/png",
+          })
+      ).error,
+      "worker cannot upload after lease finalization",
+    );
+    checked(
+      await admin
+        .from("scan_worker_identities")
+        .update({ active: false })
+        .eq("user_id", workerUser.id),
+      "revoke worker identity",
+    );
+    assert(
+      (
+        await workerClient.rpc("public_worker_attest", {
+          p_ready: true,
+          p_policy_version: "public-gateway-v1",
+        })
+      ).error,
+      "revoked worker JWT cannot attest",
+    );
+    checked(
+      await admin.storage.from("scan-artifacts").remove([path]),
+      "remove disposable authorization evidence",
+    );
+  } finally {
+    if (authorizationRun)
+      await admin.from("scan_runs").delete().eq("id", authorizationRun);
+    await admin.auth.admin.deleteUser(workerUser.id);
+    await admin.from("beta_access").delete().eq("email", workerEmail);
+  }
   const ops = checked(
     await admin.rpc("operational_status", {}),
     "operator metrics",
@@ -249,6 +391,7 @@ export async function verifyBeta({
         nonce_csp: true,
         http_only_cookies: true,
         worker_health: true,
+        dedicated_worker_auth_and_storage: true,
         metrics,
       },
       null,

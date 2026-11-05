@@ -17,6 +17,51 @@ services:
     mem_limit: 768m
     cpus: 1
     pids_limit: 256
+  tls-fixture:
+    image: node:24-bookworm-slim
+    user: node
+    command: ["node", "/app/fixture.mjs"]
+    volumes:
+      - ./tests/integration/gateway-fixture.mjs:/app/fixture.mjs:ro
+      - ./work/gateway-certs:/certs:ro
+    networks:
+      tls_probe:
+        ipv4_address: 11.77.0.10
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    mem_limit: 128m
+    pids_limit: 64
+  gateway-transport:
+    build:
+      context: .
+      dockerfile: worker/Dockerfile.gateway-test
+    environment:
+      NODE_EXTRA_CA_CERTS: /certs/server.crt
+    volumes:
+      - ./work/gateway-certs/server.crt:/certs/server.crt:ro
+    depends_on: [tls-fixture]
+    networks:
+      tls_probe:
+        ipv4_address: 11.77.0.20
+      private_probe:
+        ipv4_address: 172.31.80.20
+    read_only: true
+    cap_drop: [ALL]
+    cap_add: [NET_ADMIN, SETUID, SETGID, SETPCAP]
+    security_opt: ["no-new-privileges:true"]
+    tmpfs: ["/tmp:size=16m,mode=1777,nosuid,nodev,noexec"]
+    mem_limit: 256m
+    cpus: 0.5
+    pids_limit: 64
 networks:
+  tls_probe:
+    internal: true
+    ipam:
+      config: [{ subnet: 11.77.0.0/24 }]
+  private_probe:
+    internal: true
+    ipam:
+      config: [{ subnet: 172.31.80.0/24 }]
   isolated_probe:
     internal: true

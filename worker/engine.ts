@@ -348,8 +348,10 @@ export async function scanWebsite(
         });
       }
     }
-    const broken = observations.filter(
-      (item) => publicMode ? (item.status!==undefined && item.status>=400) : (!item.status || item.status>=400),
+    const broken = observations.filter((item) =>
+      publicMode
+        ? item.status !== undefined && item.status >= 400
+        : !item.status || item.status >= 400,
     ).length;
     finding(
       "links",
@@ -357,22 +359,46 @@ export async function scanWebsite(
         ? publicMode && observations.some((item) => item.category === "blocked")
           ? "warning"
           : "fail"
-        : publicMode && observations.some(item=>!item.status) ? "warning" : observations.length
-          ? "pass"
-          : "warning",
+        : publicMode && observations.some((item) => !item.status)
+          ? "warning"
+          : observations.length
+            ? "pass"
+            : "warning",
       observations.length
         ? "Bounded internal-link navigation completed."
         : "No eligible internal links were observed.",
-      { checked: observations.length, broken, links: observations, ...(publicMode?{executed:loaded,executed_links:observations.filter(item=>item.status!==undefined).length,not_executed_links:observations.filter(item=>item.status===undefined).length}:{}) },
+      {
+        checked: observations.length,
+        broken,
+        links: observations,
+        ...(publicMode
+          ? {
+              executed: loaded,
+              executed_links: observations.filter(
+                (item) => item.status !== undefined,
+              ).length,
+              not_executed_links: observations.filter(
+                (item) => item.status === undefined,
+              ).length,
+            }
+          : {}),
+      },
       started,
     );
     finding(
       "javascript",
       publicMode && !loaded ? "warning" : jsTotal ? "warning" : "pass",
-      publicMode && !loaded ? "JavaScript observation was not executed because target navigation was unavailable." : jsTotal
-        ? "JavaScript or console errors were observed."
-        : "No JavaScript or console errors were observed during this run.",
-      { count: jsTotal, messages: js, truncated: jsTotal > js.length, ...(publicMode?{executed:loaded}:{}) },
+      publicMode && !loaded
+        ? "JavaScript observation was not executed because target navigation was unavailable."
+        : jsTotal
+          ? "JavaScript or console errors were observed."
+          : "No JavaScript or console errors were observed during this run.",
+      {
+        count: jsTotal,
+        messages: js,
+        truncated: jsTotal > js.length,
+        ...(publicMode ? { executed: loaded } : {}),
+      },
       performance.now(),
     );
     finding(
