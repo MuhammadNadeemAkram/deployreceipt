@@ -6,7 +6,16 @@ Date: 2026-11-05. Task07 branch: `feat/secure-public-scanning`.
 
 Task06 PR#6 is merged into main at `39bd935`. Existing fixture-only checks and application protections are the baseline. The operator identified Vercel as the hosting platform but did not identify a separate approved Linux worker host. The identified Vercel web deployment does not establish an approved worker/gateway runtime with the required network controls. Vercel also offers separate Container Runtime, Background Workers and Sandbox products; none is configured or verified for this repository, and their existence does not prove this topology is enforceable. Do not broaden the existing fixture firewall or enable a public scan mode to work around this.
 
-The user replaced the previous target with `https://www.noviqen.co.uk/` and supplied `https://theblogwriter.vercel.app/` as its Vercel deployment address. Record `https://www.noviqen.co.uk` as the proposed staging test origin only. The deployment address is not a Vercel dashboard/project-management connection and does not establish a worker runtime. Normal public-page inspection retrieved Noviqen; the browsing tool could not access the Vercel alias, so their deployment relationship is unverified. No DNS ownership challenge has been verified, no public scan has been queued and no scanner traffic has been sent by this task. Authorization for this exact hostname does not authorize the apex domain, sibling subdomains, redirects to another origin or third-party infrastructure.
+The user replaced the previous target with `https://www.noviqen.co.uk/`. On 2026-11-05, read-only inspection of the authenticated [theblogwriter project](https://vercel.com/nadeemakram4436-1522s-projects/theblogwriter) verified:
+
+- The target project is linked to `MuhammadNadeemAkram/theblogwriter`, not the DeployReceipt repository, and has a Ready production deployment.
+- `www.noviqen.co.uk` and `theblogwriter.vercel.app` both show Valid Configuration / Production.
+- `noviqen.co.uk` shows a 308 redirect to `www.noviqen.co.uk`.
+- The project's Daemons page shows **No Daemons Configured** (all environments).
+- The project's Sandbox page shows **Get Started with Vercel Sandbox** onboarding; no configured DeployReceipt scanning runtime was identified there.
+- No deployment, domain, permission, environment-variable, service or billing setting was changed. No secret values were opened.
+
+This verifies the website's deployment mapping, not the browser/gateway isolation or DNS TXT ownership proof required by DeployReceipt. Record `https://www.noviqen.co.uk` as the proposed staging test origin only. No DNS ownership challenge has been verified, no public scan has been queued and no scanner traffic has been sent by this task. Authorization for this exact hostname does not authorize the apex domain, sibling subdomains, cross-origin redirects or third-party infrastructure. Keep the scanner control plane and credentials separate from this live target-site project.
 
 ## Sources and design requirements
 
@@ -106,7 +115,7 @@ The following are **activation blockers**, not work completed by this documentat
 - [ ] Exact test origin remains explicitly authorized and DNS ownership verified through the application.
 - [ ] Separate staging services, private artifacts, cleanup, backups and incident kill switch configured.
 
-No connection details for such a worker host are currently configured in this workspace. Neither checkout has a linked `.vercel/project.json`; no Vercel deployment token is configured in this task environment. The supplied public deployment URL does not grant account access. The prior attempt to inspect a browser hosting session ended because Computer Use could not reliably determine the browser URL; no account configuration was inspected or changed. Docker/Supabase CLIs are unavailable locally; prior Linux CI verifies the **existing fixture topology only**.
+No connection details for such a worker host are currently configured in this workspace. Neither checkout has a linked `.vercel/project.json`; no Vercel deployment token is configured in this task environment. The user supplied the dashboard URL and completed browser sign-in, allowing read-only verification of the target-site project. That project has no configured daemon and does not identify an approved scanning runtime. Browser access to the target website project does not supply a worker deployment identity or demonstrate enforceable egress policy. Docker/Supabase CLIs are unavailable locally; prior Linux CI verifies the **existing fixture topology only**.
 
 ## Adversarial validation plan
 
