@@ -82,6 +82,15 @@ export type Database = {
     };
     Views: { [_ in never]: never };
     Functions: {
+      public_scanning_status: { Args: Record<string, never>; Returns: boolean };
+      public_worker_attest: {
+        Args: { p_ready: boolean; p_policy_version: string };
+        Returns: boolean;
+      };
+      request_public_scan: {
+        Args: { p_project_id: string; p_consent: boolean };
+        Returns: string;
+      };
       beta_access_status: {
         Args: Record<string, never>;
         Returns: {

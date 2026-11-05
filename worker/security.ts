@@ -33,7 +33,13 @@ export function publicUrl(value: string) {
   return url;
 }
 export function assertPublicAddress(address: string) {
-  const parsed = ipaddr.process(address);
+  const original = ipaddr.parse(address);
+  if (
+    original.kind() === "ipv6" &&
+    (original as ipaddr.IPv6).isIPv4MappedAddress()
+  )
+    throw new Error("blocked_address");
+  const parsed = original;
   if (parsed.range() !== "unicast") throw new Error("blocked_address");
   if (parsed.kind() === "ipv6" && !parsed.match(ipaddr.parseCIDR("2000::/3")))
     throw new Error("blocked_address");

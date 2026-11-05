@@ -52,3 +52,7 @@ sign_in_sign_ups = 20
 token_refresh = 150
 token_verifications = 20
 anonymous_users = 0
+
+[auth.hook.custom_access_token]
+enabled = true
+uri = "pg-functions://postgres/public/scan_worker_access_token"

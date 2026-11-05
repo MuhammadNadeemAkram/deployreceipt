@@ -11,7 +11,7 @@ export function matchesChallenge(records: string[][], token: string) {
 export async function verifyDomain(
   target: string,
   token: string,
-  mode: "disabled" | "local",
+  mode: "disabled" | "local" | "public",
   resolve?: (name: string) => Promise<string[][]>,
 ) {
   if (mode === "local") {

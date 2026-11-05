@@ -62,13 +62,22 @@ export function validateEnvironment(env) {
       env.PRODUCTION_SUPABASE_PROJECT_REF === env.STAGING_SUPABASE_PROJECT_REF)
   )
     throw Error("database_environment_mismatch");
-  if (![undefined, "disabled", "fixture"].includes(env.SCANNING_AVAILABLE))
+  if (
+    ![undefined, "disabled", "fixture", "public"].includes(
+      env.SCANNING_AVAILABLE,
+    )
+  )
     throw Error("invalid_scanning_mode");
+  if (
+    env.SCANNING_AVAILABLE === "public" &&
+    (app !== "staging" || env.PUBLIC_SCAN_STAGING !== "approved")
+  )
+    throw Error("public_scanning_requires_staging_approval");
   return {
     environment: app,
     hosted,
     configured: true,
-    scanning: env.SCANNING_AVAILABLE === "fixture",
+    scanning: ["fixture", "public"].includes(env.SCANNING_AVAILABLE),
     origin: origin.origin,
     supabaseOrigin: database.origin,
   };

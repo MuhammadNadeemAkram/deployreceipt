@@ -5,6 +5,18 @@ import { requireUser } from "@/features/auth/session";
 import { isProjectId } from "@/features/projects/validation";
 import type { FormState } from "@/features/auth/validation";
 const messages: Record<string, string> = {
+  explicit_consent_required:
+    "Confirm ownership and authorize the passive scan before continuing.",
+  public_scanning_unavailable:
+    "Public scanning is paused or its security readiness has expired.",
+  public_worker_busy:
+    "The public scanner is busy. Try again after the active scan finishes.",
+  domain_cooldown:
+    "This hostname was recently scanned. Wait at least two minutes.",
+  domain_allowance:
+    "This hostname has reached the shared 24-hour scan allowance.",
+  invalid_public_url:
+    "Use a canonical public HTTP/HTTPS hostname with its default port and no credentials.",
   scanning_disabled:
     "Public website scanning is disabled. Only the isolated local fixture mode is available.",
   fixture_only: "This installation permits only the controlled fixture URL.",
@@ -80,4 +92,46 @@ export async function requestVerification(
     success:
       "Verification queued. A worker will check the challenge. Add the TXT record below and recheck if needed.",
   };
+}
+
+export async function requestPublicScan(
+  projectId: string,
+  _state: FormState,
+  form: FormData,
+): Promise<FormState> {
+  const { client, user } = await requireUser();
+  if (!isProjectId(projectId)) return { error: "Project not found." };
+  if (
+    process.env.APP_ENV !== "staging" ||
+    process.env.SCANNING_AVAILABLE !== "public" ||
+    process.env.PUBLIC_SCAN_STAGING !== "approved"
+  )
+    return { error: messages.public_scanning_unavailable };
+  if (form.get("consent") !== "authorized")
+    return { error: messages.explicit_consent_required };
+  const { data: project } = await client
+    .from("projects")
+    .select("id")
+    .eq("id", projectId)
+    .eq("owner_id", user.id)
+    .maybeSingle();
+  if (!project) return { error: "Project not found." };
+  let id: string | null = null;
+  try {
+    const result = await client.rpc("request_public_scan", {
+      p_project_id: projectId,
+      p_consent: true,
+    });
+    if (result.error)
+      return {
+        error:
+          messages[result.error.message] ?? "Public scan could not be queued.",
+      };
+    id = result.data;
+  } catch {
+    return { error: "Scan services are unavailable." };
+  }
+  revalidatePath(`/dashboard/projects/${projectId}`);
+  if (id) redirect(`/dashboard/scans/${id}`);
+  return { error: "Public scan could not be queued." };
 }

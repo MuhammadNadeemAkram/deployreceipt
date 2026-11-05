@@ -42,9 +42,11 @@ export default async function DashboardLayout({
         <header className="workspace-header">
           <span>
             Private beta ·{" "}
-            {process.env.SCANNING_AVAILABLE === "fixture"
-              ? "Restricted fixture scans only"
-              : "Scanning disabled"}
+            {process.env.SCANNING_AVAILABLE === "public"
+              ? "Authorized public scans · staging security gates apply"
+              : process.env.SCANNING_AVAILABLE === "fixture"
+                ? "Restricted fixture scans only"
+                : "Scanning disabled"}
           </span>
           <details className="account-menu">
             <summary>My account</summary>

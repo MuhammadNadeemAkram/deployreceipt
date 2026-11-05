@@ -11,7 +11,7 @@ export default async function ProjectDetail({
 }) {
   const project = await getProject((await params).id);
   const { client } = await requireUser();
-  const [verification, history, config] = await Promise.all([
+  const [verification, history, config, publicStatus] = await Promise.all([
     client
       .from("domain_verifications")
       .select("*")
@@ -24,6 +24,7 @@ export default async function ProjectDetail({
       .order("created_at", { ascending: false })
       .limit(20),
     client.from("scan_settings").select("*").single(),
+    client.rpc("public_scanning_status", {}),
   ]);
   if (verification.error || history.error || config.error)
     throw new Error("Apply the scanning migration before using scan features.");
@@ -34,18 +35,27 @@ export default async function ProjectDetail({
     false;
   const verified = Boolean(
     v?.status === "verified" &&
-    v.expires_at &&
-    new Date(v.expires_at) > new Date(),
+      v.expires_at &&
+      new Date(v.expires_at) > new Date(),
   );
   const fixture = /^http:\/\/fixture:8080(\/[^?#]*)?$/.test(
     project.website_url,
   );
+  const publicMode = settings?.mode === "public";
+  const publicAvailable =
+    publicMode &&
+    !publicStatus.error &&
+    publicStatus.data === true &&
+    process.env.APP_ENV === "staging" &&
+    process.env.SCANNING_AVAILABLE === "public" &&
+    process.env.PUBLIC_SCAN_STAGING === "approved";
   const canScan =
-    settings?.mode === "local" &&
-    fixture &&
-    verified &&
-    v?.method === "local_fixture" &&
-    !active;
+    (publicAvailable && verified && v?.method === "dns" && !active) ||
+    (settings?.mode === "local" &&
+      fixture &&
+      verified &&
+      v?.method === "local_fixture" &&
+      !active);
   return (
     <>
       <Link href="/dashboard">← Projects</Link>
@@ -76,11 +86,21 @@ export default async function ProjectDetail({
             ` · Last verified ${new Date(v.verified_at).toLocaleString("en", { timeZone: "UTC" })} UTC`}
         </p>
         <p className="notice">
-          Public URL scanning is disabled.{" "}
-          {settings?.mode === "local"
-            ? "Only the isolated controlled fixture at http://fixture:8080 is permitted."
-            : "An administrator must configure the restricted local fixture mode before scans can run."}{" "}
-          DNS verification does not enable public scans.
+          {publicMode ? (
+            publicAvailable ? (
+              "Authorized public scanning is available in staging. Scope is the exact verified origin; third-party resources and state-changing methods are blocked. Policy denials are coverage limitations, not automatically website defects."
+            ) : (
+              "Public scanning is paused. A fresh approved security configuration and healthy isolated gateway/worker are required."
+            )
+          ) : (
+            <>
+              Public URL scanning is disabled.{" "}
+              {settings?.mode === "local"
+                ? "Only the isolated controlled fixture at http://fixture:8080 is permitted."
+                : "Scanning is disabled for this installation."}{" "}
+              DNS verification does not by itself enable public scans.
+            </>
+          )}
         </p>
         {fixture && settings?.mode === "local" ? (
           <p>
@@ -105,6 +125,8 @@ export default async function ProjectDetail({
             <dd>
               <code>deployreceipt={v.token}</code>
             </dd>
+            <dt>Verification expires</dt>
+            <dd>{v.expires_at ?? "Not verified"}</dd>
             <dt>Latest check</dt>
             <dd>
               {v.checked_at
@@ -117,6 +139,7 @@ export default async function ProjectDetail({
           projectId={project.id}
           canScan={canScan}
           hasChallenge={Boolean(v)}
+          publicMode={publicMode}
         />
         {active && (
           <p>

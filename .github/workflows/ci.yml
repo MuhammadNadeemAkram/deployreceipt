@@ -52,6 +52,14 @@ jobs:
       - run: docker compose -f compose.scan-local.yml run --build --rm -e SCAN_EGRESS_TEST_ONLY=1 browser
       - if: always()
         run: docker compose -f compose.scan-local.yml down
+  public-browser-isolation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - run: docker compose -f compose.scan-public-test.yml run --build --rm isolation-probe
+      - if: always()
+        run: docker compose -f compose.scan-public-test.yml down
   reports-end-to-end:
     runs-on: ubuntu-latest
     timeout-minutes: 25

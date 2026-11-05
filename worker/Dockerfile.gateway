@@ -1,0 +1,9 @@
+FROM node:24-bookworm-slim
+WORKDIR /app
+RUN apt-get update && apt-get install -y --no-install-recommends iptables util-linux && rm -rf /var/lib/apt/lists/*
+COPY package*.json ./
+RUN npm install --global npm@12.2.1 && npm ci --ignore-scripts
+COPY worker/gateway ./worker/gateway
+COPY worker/security.ts ./worker/security.ts
+RUN chmod 755 worker/gateway/entrypoint.sh
+ENTRYPOINT ["/app/worker/gateway/entrypoint.sh"]
