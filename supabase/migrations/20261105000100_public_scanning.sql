@@ -104,7 +104,7 @@ declare job record;r public.scan_runs;v public.domain_verifications;settings pub
 begin
  select * into settings from public.scan_settings;
  if settings.mode<>'public' then if (coalesce(auth.role()='service_role',false) or current_setting('role',true)='service_role') then return public.fixture_lease_scan_job();end if;return null;end if;
- if not public.public_scan_worker() or not public.public_scan_ready() or not exists(select 1 from public.public_worker_readiness r join public.public_scan_settings p on p.security_suite_sha=r.security_suite_sha where r.user_id=auth.uid() and r.ready and r.checked_at>now()-interval '45 seconds') then return null;end if;
+ if not public.public_scan_worker() or not public.public_scan_ready() or not exists(select 1 from public.public_worker_readiness wr join public.public_scan_settings ps on ps.security_suite_sha=wr.security_suite_sha where wr.user_id=auth.uid() and wr.ready and wr.checked_at>now()-interval '45 seconds') then return null;end if;
  select * into job from pgmq.read('scan_jobs',180,1)limit 1;if not found then return null;end if;
  if job.message->>'kind'='scan' then
   select * into r from public.scan_runs where id=(job.message->>'scan_id')::uuid for update;
