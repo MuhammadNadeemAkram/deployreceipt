@@ -13,10 +13,10 @@ select throws_ok($$select public.public_target_origin('http://2130706433/')$$,'P
 select throws_ok($$select public.public_target_origin('https://user:secret@example.com/')$$,'P0001',null,'userinfo rejected');
 select throws_ok($$select public.public_target_origin('http://host.local/')$$,'P0001',null,'internal DNS rejected');
 select throws_ok($$select public.public_target_origin('https://example.com:444/')$$,'P0001',null,'nondefault port rejected');
-insert into auth.users(id,email,email_confirmed_at) values('75111111-1111-4111-8111-111111111111','public-owner@example.test',now()),('75222222-2222-4222-8222-222222222222','worker@example.test',now());
-insert into auth.sessions(id,user_id)values('76111111-1111-4111-8111-111111111111','75111111-1111-4111-8111-111111111111'),('76222222-2222-4222-8222-222222222222','75222222-2222-4222-8222-222222222222');
+insert into auth.users(id,email,email_confirmed_at) values('75111111-1111-4111-8111-111111111111','public-owner@example.test',now()),('75222222-2222-4222-8222-222222222222','worker@example.test',now()),('75333333-3333-4333-8333-333333333333','unattested-worker@example.test',now());
+insert into auth.sessions(id,user_id)values('76111111-1111-4111-8111-111111111111','75111111-1111-4111-8111-111111111111'),('76222222-2222-4222-8222-222222222222','75222222-2222-4222-8222-222222222222'),('76333333-3333-4333-8333-333333333333','75333333-3333-4333-8333-333333333333');
 insert into public.beta_access(email)values('public-owner@example.test');
-insert into public.scan_worker_identities values('75222222-2222-4222-8222-222222222222',true);
+insert into public.scan_worker_identities values('75222222-2222-4222-8222-222222222222',true),('75333333-3333-4333-8333-333333333333',true);
 select is(public.scan_worker_access_token('{"user_id":"75222222-2222-4222-8222-222222222222","claims":{"role":"authenticated"}}')->'claims'->>'role','deployreceipt_scan_worker','only registered worker gets dedicated role');
 select is(public.scan_worker_access_token('{"user_id":"75111111-1111-4111-8111-111111111111","claims":{"role":"authenticated"}}')->'claims'->>'role','authenticated','ordinary member cannot acquire worker role');
 set local role authenticated;
@@ -47,6 +47,9 @@ select throws_ok($$select public.request_scan((select id from public.projects wh
 select lives_ok($$select public.request_public_scan((select id from public.projects where name='public test'),true)$$,'verified owner can submit bounded consented public job');
 select throws_ok($$select public.request_public_scan((select id from public.projects where name='public test'),true)$$,'P0001','public_worker_busy','global concurrency serializes accounts');
 set local role deployreceipt_scan_worker;
+select set_config('request.jwt.claims','{"sub":"75222222-2222-4222-8222-222222222222","role":"deployreceipt_scan_worker","session_id":"76222222-2222-4222-8222-222222222222"}',true);
+select set_config('request.jwt.claims','{"sub":"75333333-3333-4333-8333-333333333333","role":"deployreceipt_scan_worker","session_id":"76333333-3333-4333-8333-333333333333"}',true);
+select is(public.lease_scan_job(),null::jsonb,'unattested worker cannot borrow another controller readiness');
 select set_config('request.jwt.claims','{"sub":"75222222-2222-4222-8222-222222222222","role":"deployreceipt_scan_worker","session_id":"76222222-2222-4222-8222-222222222222"}',true);
 insert into pg_temp.public_test_job select public.lease_scan_job();
 select is((select data->>'kind' from pg_temp.public_test_job),'scan','dedicated worker can lease consented verified public job');

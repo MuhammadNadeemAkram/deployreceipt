@@ -1,8 +1,15 @@
 // Executed only in the no-internet controlled gateway transport container.
 import assert from "node:assert/strict";
 import net from "node:net";
+import http from "node:http";
 import { FetchScope } from "../../worker/gateway/fetch";
 async function main() {
+  let loopbackHits = 0;
+  const trap = http.createServer((_request, response) => {
+    loopbackHits++;
+    response.end("forbidden");
+  });
+  await new Promise<void>((resolve) => trap.listen(8765, "::", resolve));
   const resolver = async () => [{ address: "11.77.0.10", family: 4 }];
   const scope = new FetchScope(
     "https://owned.qa-fixture.net/",
@@ -36,7 +43,7 @@ async function main() {
   );
   await assert.rejects(
     wrongName.fetch("https://wrong.qa-fixture.net/", "GET"),
-    /upstream_unavailable/,
+    /tls_rejected/,
   );
   for (const path of [
     "/redirect-private",
@@ -94,6 +101,10 @@ async function main() {
       false,
       "Gateway kernel firewall must deny private/loopback/metadata independently of URL checks",
     );
+  assert.equal(await raw("127.0.0.1", 8765), false);
+  assert.equal(await raw("::1", 8765), false);
+  assert.equal(loopbackHits, 0);
+  trap.close();
   assert.equal(
     await raw("11.77.0.10", 80),
     true,

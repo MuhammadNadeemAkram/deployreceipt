@@ -119,7 +119,22 @@ export function connectPinned(input: WireRequest): Promise<WireResponse> {
       socket.destroy();
       reject(new PolicyError("upgrade_blocked"));
     });
-    request.on("error", () => reject(new PolicyError("upstream_unavailable")));
+    request.on("error", (error) => {
+      if (error instanceof PolicyError) {
+        reject(error);
+        return;
+      }
+      const code = (error as NodeJS.ErrnoException).code ?? "";
+      reject(
+        new PolicyError(
+          /CERT|TLS|SSL|SELF_SIGNED|VERIFY_LEAF/.test(code)
+            ? "tls_rejected"
+            : code === "ABORT_ERR"
+              ? "upstream_timeout"
+              : "upstream_unavailable",
+        ),
+      );
+    });
     request.setTimeout(8000, () =>
       request.destroy(new PolicyError("upstream_timeout")),
     );
@@ -163,6 +178,7 @@ export class FetchScope {
   async fetch(value: string, method: string): Promise<GatewayResponse> {
     if (this.closed || Date.now() >= this.expires)
       throw new PolicyError("scope_expired");
+    if (this.bytes >= 16777216) throw new PolicyError("total_byte_limit");
     if (++this.requests > this.budget.requests)
       throw new PolicyError("request_limit");
     if (this.active >= 2) throw new PolicyError("concurrency_limit");

@@ -34,8 +34,9 @@ export default async function DashboardLayout({
         <p className="eyebrow">YOUR WORKSPACE</p>
         <WorkspaceNav />
         <p className="sidebar-note">
-          Private projects, controlled-fixture scans, QA reports and versioned
-          client reviews. Public scanning remains unavailable.
+          {process.env.SCANNING_AVAILABLE === "public"
+            ? "Public staging mode requires verified ownership and current security readiness. Private reports and versioned reviews remain access-controlled."
+            : "Private projects, controlled-fixture scans, QA reports and versioned client reviews. Public scanning remains unavailable for this configuration."}
         </p>
       </aside>
       <div className="workspace-body">

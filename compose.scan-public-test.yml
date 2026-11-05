@@ -6,7 +6,10 @@ services:
       dockerfile: worker/Dockerfile.public-browser
     environment:
       PUBLIC_ISOLATION_PROBE: "1"
-    networks: [isolated_probe]
+    depends_on: [private-trap]
+    networks:
+      isolated_probe:
+        ipv4_address: 172.31.81.20
     cap_drop: [ALL]
     cap_add: [NET_ADMIN, SETUID, SETGID, SETPCAP]
     security_opt:
@@ -17,6 +20,22 @@ services:
     mem_limit: 768m
     cpus: 1
     pids_limit: 256
+  private-trap:
+    image: node:24-bookworm-slim
+    user: node
+    command:
+      [
+        "node",
+        "-e",
+        "require('node:http').createServer((q,s)=>s.end('controlled private trap')).listen(8765,'0.0.0.0')",
+      ]
+    networks:
+      isolated_probe:
+        ipv4_address: 172.31.81.10
+    read_only: true
+    cap_drop: [ALL]
+    mem_limit: 64m
+    pids_limit: 32
   tls-fixture:
     image: node:24-bookworm-slim
     user: node
@@ -27,6 +46,8 @@ services:
     networks:
       tls_probe:
         ipv4_address: 11.77.0.10
+      private_probe:
+        ipv4_address: 172.31.80.10
     read_only: true
     cap_drop: [ALL]
     security_opt: ["no-new-privileges:true"]
@@ -65,3 +86,5 @@ networks:
       config: [{ subnet: 172.31.80.0/24 }]
   isolated_probe:
     internal: true
+    ipam:
+      config: [{ subnet: 172.31.81.0/24 }]

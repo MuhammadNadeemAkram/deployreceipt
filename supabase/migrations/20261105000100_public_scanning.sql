@@ -26,7 +26,7 @@ grant usage on schema public,storage to deployreceipt_scan_worker;
 alter role deployreceipt_scan_worker set statement_timeout='10s';
 alter role deployreceipt_scan_worker set lock_timeout='3s';
 create function public.public_scan_worker() returns boolean language sql stable security definer set search_path='' as $$
- select auth.role()='deployreceipt_scan_worker' and exists(select 1 from public.scan_worker_identities w join auth.users u on u.id=w.user_id join auth.sessions s on s.user_id=w.user_id where w.user_id=auth.uid() and w.active and u.email_confirmed_at is not null and not coalesce(u.is_anonymous,false) and s.id::text=auth.jwt()->>'session_id' and (s.not_after is null or s.not_after>clock_timestamp()));
+ select coalesce(auth.role()='deployreceipt_scan_worker',false) and exists(select 1 from public.scan_worker_identities w join auth.users u on u.id=w.user_id join auth.sessions s on s.user_id=w.user_id where w.user_id=auth.uid() and w.active and u.email_confirmed_at is not null and not coalesce(u.is_anonymous,false) and s.id::text=auth.jwt()->>'session_id' and (s.not_after is null or s.not_after>clock_timestamp()));
 $$;
 create function public.scan_worker_access_token(event jsonb) returns jsonb language plpgsql stable security definer set search_path='' as $$
 begin
@@ -44,7 +44,7 @@ create function public.public_worker_attest(p_ready boolean,p_policy_version tex
 begin
  if not public.public_scan_worker() or p_policy_version<>'public-gateway-v1' then raise exception 'not_authorized' using errcode='42501';end if;
  insert into public.public_worker_readiness values(auth.uid(),p_ready,clock_timestamp(),p_policy_version,p_security_suite_sha) on conflict(user_id)do update set ready=excluded.ready,checked_at=excluded.checked_at,policy_version=excluded.policy_version,security_suite_sha=excluded.security_suite_sha;
- return public.public_scan_ready();
+ return p_ready and p_security_suite_sha=(select security_suite_sha from public.public_scan_settings) and public.public_scan_ready();
 end;$$;
 create function public.public_target_origin(value text) returns text language plpgsql immutable set search_path='' as $$
 declare parts text[];label text;
@@ -103,8 +103,8 @@ create function public.lease_scan_job() returns jsonb language plpgsql security 
 declare job record;r public.scan_runs;v public.domain_verifications;settings public.scan_settings;lease uuid=gen_random_uuid();
 begin
  select * into settings from public.scan_settings;
- if settings.mode<>'public' then if (auth.role()='service_role' or current_setting('role',true)='service_role') then return public.fixture_lease_scan_job();end if;return null;end if;
- if not public.public_scan_worker() or not public.public_scan_ready() then return null;end if;
+ if settings.mode<>'public' then if (coalesce(auth.role()='service_role',false) or current_setting('role',true)='service_role') then return public.fixture_lease_scan_job();end if;return null;end if;
+ if not public.public_scan_worker() or not public.public_scan_ready() or not exists(select 1 from public.public_worker_readiness r join public.public_scan_settings p on p.security_suite_sha=r.security_suite_sha where r.user_id=auth.uid() and r.ready and r.checked_at>now()-interval '45 seconds') then return null;end if;
  select * into job from pgmq.read('scan_jobs',180,1)limit 1;if not found then return null;end if;
  if job.message->>'kind'='scan' then
   select * into r from public.scan_runs where id=(job.message->>'scan_id')::uuid for update;
@@ -131,12 +131,13 @@ begin
  end if;perform pgmq.archive('scan_jobs',job.msg_id);return null;
 end;$$;
 create function public.worker_job_permitted(p_id uuid,p_lease uuid,p_kind text)returns boolean language sql stable security definer set search_path='' as $$
- select (auth.role()='service_role' or current_setting('role',true)='service_role') or (public.public_scan_worker() and case when p_kind='scan' then exists(select 1 from public.scan_runs where id=p_id and worker_identity=auth.uid() and lease_token=p_lease and lease_until>now()) else exists(select 1 from public.domain_verifications where project_id=p_id and worker_identity=auth.uid() and lease_token=p_lease and lease_until>now())end);
+ select (coalesce(auth.role()='service_role',false) or current_setting('role',true)='service_role') or (public.public_scan_worker() and case when p_kind='scan' then exists(select 1 from public.scan_runs where id=p_id and worker_identity=auth.uid() and lease_token=p_lease and lease_until>now()) else exists(select 1 from public.domain_verifications where project_id=p_id and worker_identity=auth.uid() and lease_token=p_lease and lease_until>now())end);
 $$;
 alter function public.finish_scan(uuid,uuid,text,jsonb,text) rename to internal_finish_scan;
 revoke all on function public.internal_finish_scan(uuid,uuid,text,jsonb,text)from public,anon,authenticated,service_role;
 create function public.finish_scan(p_scan_id uuid,p_lease uuid,p_status text,p_checks jsonb,p_error text default null)returns boolean language plpgsql security definer set search_path='' as $$declare done boolean;begin
  if not public.worker_job_permitted(p_scan_id,p_lease,'scan')then raise exception 'not_authorized' using errcode='42501';end if;
+ if exists(select 1 from public.scan_runs where id=p_scan_id and public_scope) and exists(select 1 from jsonb_array_elements(p_checks)c where c->'details'->'executed'='false'::jsonb and c->>'outcome' is distinct from 'warning')then raise exception 'invalid_public_outcome';end if;
  done:=public.internal_finish_scan(p_scan_id,p_lease,p_status,p_checks,p_error);if done then insert into public.public_scan_audit(user_id,project_id,event)select requested_by,project_id,'finished' from public.scan_runs where id=p_scan_id and public_scope; if exists(select 1 from jsonb_array_elements(p_checks)c where coalesce(c->'details'->>'policy_blocked','0')<>'0')then insert into public.public_scan_audit(user_id,project_id,event)select requested_by,project_id,'policy_blocked' from public.scan_runs where id=p_scan_id and public_scope;end if; end if;return done;
 end;$$;
 revoke all on function public.finish_scan(uuid,uuid,text,jsonb,text)from public,anon,authenticated;
@@ -161,6 +162,7 @@ alter function public.record_scan_configuration(uuid,uuid,jsonb) rename to inter
 revoke all on function public.internal_record_scan_configuration(uuid,uuid,jsonb)from public,anon,authenticated,service_role;
 create function public.record_scan_configuration(p_scan_id uuid,p_lease uuid,p_configuration jsonb)returns boolean language plpgsql security definer set search_path='' as $$declare done boolean;begin
  if not public.worker_job_permitted(p_scan_id,p_lease,'scan')then raise exception 'not_authorized' using errcode='42501';end if;
+ if auth.role()='deployreceipt_scan_worker' and (p_configuration->>'mode' is distinct from 'public' or p_configuration->>'transport' is distinct from 'pinned_gateway_v1')then raise exception 'invalid_public_configuration';end if;
  done:=public.internal_record_scan_configuration(p_scan_id,p_lease,p_configuration);if done then null; end if;return done;
 end;$$;
 revoke all on function public.record_scan_configuration(uuid,uuid,jsonb)from public,anon,authenticated;
@@ -168,7 +170,7 @@ grant execute on function public.record_scan_configuration(uuid,uuid,jsonb)to se
 alter function public.ack_scan_job(bigint) rename to internal_ack_scan_job;
 revoke all on function public.internal_ack_scan_job(bigint)from public,anon,authenticated,service_role;
 create function public.ack_scan_job(p_message_id bigint)returns boolean language plpgsql security definer set search_path='' as $$declare message jsonb;begin
- if not (auth.role()='service_role' or current_setting('role',true)='service_role') then
+ if not (coalesce(auth.role()='service_role',false) or current_setting('role',true)='service_role') then
   if not public.public_scan_worker()then raise exception 'not_authorized' using errcode='42501';end if;
   select q.message into message from pgmq.q_scan_jobs q where msg_id=p_message_id;
   if not(case when message->>'kind'='scan' then exists(select 1 from public.scan_runs where id=(message->>'scan_id')::uuid and worker_identity=auth.uid())else exists(select 1 from public.domain_verifications where project_id=(message->>'project_id')::uuid and worker_identity=auth.uid())end)then return false;end if;
@@ -177,14 +179,14 @@ end;$$;
 alter function public.expired_scan_artifacts()rename to internal_expired_scan_artifacts;
 revoke all on function public.internal_expired_scan_artifacts()from public,anon,authenticated,service_role;
 create function public.expired_scan_artifacts()returns setof text language plpgsql security definer set search_path='' as $$begin
- if not (auth.role()='service_role' or current_setting('role',true)='service_role') and not public.public_scan_worker()then raise exception 'not_authorized' using errcode='42501';end if;
+ if not (coalesce(auth.role()='service_role',false) or current_setting('role',true)='service_role') and not public.public_scan_worker()then raise exception 'not_authorized' using errcode='42501';end if;
  delete from public.public_scan_audit where created_at<now()-interval '30 days';
  return query select public.internal_expired_scan_artifacts();
 end;$$;
 alter function public.worker_tick(uuid,boolean,text)rename to internal_worker_tick;
 revoke all on function public.internal_worker_tick(uuid,boolean,text)from public,anon,authenticated,service_role;
 create function public.worker_tick(p_instance uuid,p_ready boolean,p_error text default null)returns jsonb language plpgsql security definer set search_path='' as $$begin
- if not (auth.role()='service_role' or current_setting('role',true)='service_role') and not public.public_scan_worker()then raise exception 'not_authorized' using errcode='42501';end if;
+ if not (coalesce(auth.role()='service_role',false) or current_setting('role',true)='service_role') and not public.public_scan_worker()then raise exception 'not_authorized' using errcode='42501';end if;
  return public.internal_worker_tick(p_instance,p_ready,p_error);
 end;$$;
 create function public.worker_artifact_allowed(p_name text,p_delete boolean)returns boolean language sql stable security definer set search_path='' as $$

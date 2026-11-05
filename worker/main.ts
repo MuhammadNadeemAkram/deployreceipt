@@ -245,6 +245,7 @@ async function main() {
             let browser:
               | Awaited<ReturnType<typeof chromium.connect>>
               | undefined;
+            let leasedBrowser = false;
             try {
               const recorded = await rpc(
                 client.rpc("record_scan_configuration", {
@@ -254,6 +255,12 @@ async function main() {
                     JSON.stringify({
                       ...scan.settings,
                       transport: "pinned_gateway_v1",
+                      worker_revision: codeSha,
+                      policy_version: "public-gateway-v1",
+                      response_bytes_limit: 2097152,
+                      job_bytes_limit: 16777216,
+                      redirect_limit: 5,
+                      network_family: "ipv4",
                       third_party: "blocked",
                       methods: ["GET", "HEAD"],
                     }),
@@ -261,6 +268,17 @@ async function main() {
                 }),
               );
               if (!recorded) throw Error("stale_scan_lease");
+              const leaseResponse = await fetch(
+                "http://public-browser:9001/lease",
+                {
+                  method: "POST",
+                  headers: { "x-public-policy-revision": codeSha! },
+                  body: JSON.stringify({ id: scan.run.id }),
+                  signal: AbortSignal.timeout(3000),
+                },
+              );
+              if (!leaseResponse.ok) throw Error("browser_process_busy");
+              leasedBrowser = true;
               browser = await chromium.connect(
                 "ws://public-browser:9000/scan-browser",
                 { timeout: 10000 },
@@ -273,13 +291,14 @@ async function main() {
                 gateway,
               );
             } finally {
-              if (browser) {
-                try {
-                  const cdp = await browser.newBrowserCDPSession();
-                  await cdp.send("Browser.close");
-                } catch {}
-                await disconnectBrowser(browser);
+              if (leasedBrowser) {
+                await fetch("http://public-browser:9001/dispose", {
+                  method: "POST",
+                  headers: { "x-public-policy-revision": codeSha! },
+                  signal: AbortSignal.timeout(3000),
+                }).catch(() => {});
               }
+              if (browser) await disconnectBrowser(browser);
               await gateway.close();
             }
           }

@@ -53,6 +53,7 @@ describe("public gateway destination policy", () => {
   it.each([
     "10.0.0.1",
     "169.254.169.254",
+    "168.63.129.16",
     "172.16.0.1",
     "192.168.0.1",
     "0.0.0.0",
@@ -226,4 +227,37 @@ it("limits aggregate per-IP and global activity across accounts/jobs", () => {
   now += 60000;
   const charge = budget.reserve("93.184.215.14");
   expect(() => charge(33554433)).toThrow("destination_byte_rate_limited");
+});
+
+it("blocks credentialed query URLs, known mutation endpoints and off-origin nested proxy destinations", () => {
+  for (const path of [
+    "/?access_token=credential",
+    "/?to%6ben=credential",
+    "/logout",
+    "/api/delete?item=1",
+    "/unsubscribe",
+  ])
+    expect(() => publicOrigin(origin + path)).toThrow();
+  expect(() =>
+    destination(
+      origin +
+        "/_next/image?url=" +
+        encodeURIComponent("http://169.254.169.254/"),
+      origin,
+      "GET",
+    ),
+  ).toThrow();
+  expect(() =>
+    destination(
+      origin +
+        "/_next/image?url=" +
+        encodeURIComponent("https://unapproved.qa-fixture.net/img.png"),
+      origin,
+      "GET",
+    ),
+  ).toThrow("nested_origin_blocked");
+  expect(
+    destination(origin + "/_next/image?url=%2Fassets%2Fimg.png", origin, "GET")
+      .origin,
+  ).toBe(origin);
 });

@@ -46,9 +46,12 @@ export function assertPublicAddress(address: string) {
   // Additional IANA special-purpose ranges not consistently classified by parsers.
   if (
     parsed.kind() === "ipv4" &&
-    ["192.0.0.0/24", "192.88.99.0/24", "198.18.0.0/15"].some((cidr) =>
-      parsed.match(ipaddr.parseCIDR(cidr)),
-    )
+    [
+      "192.0.0.0/24",
+      "192.88.99.0/24",
+      "198.18.0.0/15",
+      "168.63.129.16/32",
+    ].some((cidr) => parsed.match(ipaddr.parseCIDR(cidr)))
   )
     throw new Error("blocked_address");
 }

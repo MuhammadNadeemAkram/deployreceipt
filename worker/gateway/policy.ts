@@ -21,6 +21,19 @@ export function publicOrigin(value: string) {
       )
   )
     throw new PolicyError("invalid_hostname");
+  for (const [name] of url.searchParams)
+    if (
+      /^(?:token|access_token|refresh_token|id_token|password|authorization|authorization_code|api_key|apikey|session|sessionid|signature|x-amz-signature)$/i.test(
+        name,
+      )
+    )
+      throw new PolicyError("credential_query_blocked");
+  if (
+    /(?:^|\/)(?:logout|signout|sign-out|unsubscribe|delete|remove|destroy|checkout|purchase|payment|reset-password|auth\/callback)(?:\/|$)/i.test(
+      url.pathname,
+    )
+  )
+    throw new PolicyError("unsafe_path_blocked");
   return url;
 }
 export async function publicAnswers(host: string) {
@@ -62,5 +75,8 @@ export function destination(value: string, origin: string, method: string) {
     throw new PolicyError("method_blocked");
   const url = publicOrigin(value);
   if (url.origin !== origin) throw new PolicyError("origin_blocked");
+  for (const value of url.searchParams.values())
+    if (/^https?:\/\//i.test(value) && publicOrigin(value).origin !== origin)
+      throw new PolicyError("nested_origin_blocked");
   return url;
 }

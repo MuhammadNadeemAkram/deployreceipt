@@ -22,6 +22,8 @@ export class EgressBudget {
       peer = { requests: 0, bytes: 0 };
       this.peers.set(address, peer);
     }
+    if (peer.bytes >= 33554432 || this.totalBytes >= 67108864)
+      throw new PolicyError("destination_byte_rate_limited");
     if (++this.totalRequests > 120)
       throw new PolicyError("gateway_rate_limited");
     if (++peer.requests > 60) throw new PolicyError("destination_rate_limited");

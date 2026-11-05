@@ -55,6 +55,13 @@ export function buildReport(input: {
     checks.some((check) => check.scan_run_id !== scan.id)
   )
     throw new Error("report_data_inconsistent");
+  if (
+    checks.some(
+      (check) =>
+        check.details.executed === false && check.outcome !== "warning",
+    )
+  )
+    throw new Error("report_data_inconsistent");
   const counts = { pass: 0, fail: 0, warning: 0 };
   checks.forEach((check) => counts[check.outcome]++);
   if (

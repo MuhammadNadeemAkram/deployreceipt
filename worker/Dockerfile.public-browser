@@ -1,11 +1,11 @@
 FROM mcr.microsoft.com/playwright:v1.64.1-noble
-ARG SCAN_CODE_SHA
-ENV SCAN_CODE_SHA=$SCAN_CODE_SHA
 WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends iptables util-linux && rm -rf /var/lib/apt/lists/*
 COPY package*.json ./
 RUN npm install --global npm@12.2.1 && npm ci --omit=dev --ignore-scripts
 COPY worker/browser-public.mjs worker/browser-public-entrypoint.sh worker/healthcheck.mjs worker/public-isolation-probe.mjs ./worker/
 RUN chmod 755 worker/browser-public-entrypoint.sh
+ARG SCAN_CODE_SHA
+ENV SCAN_CODE_SHA=$SCAN_CODE_SHA
 HEALTHCHECK --interval=10s --timeout=3s --start-period=30s --retries=3 CMD ["node","worker/healthcheck.mjs","/tmp/deployreceipt-browser-health.json"]
 ENTRYPOINT ["/app/worker/browser-public-entrypoint.sh"]
